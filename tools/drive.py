@@ -25,7 +25,23 @@ try {
       else {
         key('Escape'); await wait(500);
         if (stage === 4) report('formation');
-        else { clickText('出擊'); await wait(2500); report('battle ' + (document.querySelector('.goal') || {}).textContent); }
+        else if (stage === 5) { clickText('出擊'); await wait(2500); report('battle ' + (document.querySelector('.goal') || {}).textContent); }
+        else {
+          clickText('出擊'); await wait(2500);
+          const log = [];
+          for (let turn = 0; turn < 3; turn++) {
+            for (let k = 0; k < 40 && !document.querySelector('.cmd .menu'); k++) await wait(250);
+            if (!document.querySelector('.cmd .menu')) { log.push('no menu'); break; }
+            key('Enter'); await wait(300); key('ArrowUp'); await wait(100); key('Enter'); await wait(1200);
+            key('ArrowDown'); key('Enter'); await wait(300); key('Enter'); await wait(300); key('Enter'); await wait(1500);
+            if (document.querySelector('.cmd .menu')) { const items = [...document.querySelectorAll('.cmd .menu button')].map((b) => b.textContent); log.push(items.join('/')); }
+            for (let k = 0; k < 5 && document.querySelector('.cmd .menu'); k++) { key('Escape'); await wait(150); }
+            const wb = [...document.querySelectorAll('.cmd .menu button')].find((b) => b.textContent.includes('待機')); if (wb) { wb.click(); await wait(300); key('Enter'); await wait(300); }
+            log.push('turn ' + turn);
+          }
+          await wait(3000);
+          report('played ' + log.join(' ; '));
+        }
       }
     }
   }

@@ -42,7 +42,7 @@ export const EVENTS1 = [
       L('ren', '……我來打頭陣。艾德溫，你從側面繞過去。', '…I\'ll take the front. Edwin, swing round the side.'),
       L('gray', '好。記住——從背後攻擊，對方就沒辦法閃避。高處的人，劍也會比較重。', 'Good. Remember — strike from behind and they can\'t dodge. And a blade from high ground hits harder.'),
     ],
-    battle: { theme: 'plains', seed: 101, w: 10, h: 10, lv: 1, foes: [F('sellsword', 2, { name: N('盜賊', 'Bandit') }), F('hunter', 1, { name: N('盜賊弓手', 'Bandit Archer') }), F('thief', 1, { name: N('盜賊頭目', 'Bandit Chief'), lv: 1, boss: true })], guests: ['gray', 'edwin'], goal: { type: 'rout' }, tutorial: true },
+    battle: { theme: 'plains', seed: 101, w: 10, h: 10, lv: 1, foes: [F('sellsword', 2, { name: N('盜賊', 'Bandit') }), F('hunter', 1, { name: N('盜賊弓手', 'Bandit Archer') }), F('thief', 1, { name: N('盜賊頭目', 'Bandit Chief'), boss: true })], guests: ['gray', 'edwin'], goal: { type: 'rout' }, tutorial: true },
     post: [
       L('edwin', '哈，比想像中還簡單嘛。', 'Ha. Easier than I expected.'),
       L('gray', '因為你運氣好。……{ren}，你剛才擋在艾德溫前面了吧。', 'Because you were lucky. …{ren}, you stepped in front of Edwin back there.'),

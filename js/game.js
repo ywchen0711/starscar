@@ -264,6 +264,14 @@ function hire(r) {
   return u;
 }
 
+// the first battle's lessons
+const TIPS = [
+  [null, '【戰鬥的基本】輪到自己的角色時，選「移動」「行動」，最後「待機」並決定面向。移動和行動的順序可以對調。', '[Basics] On your unit’s turn, choose Move and Act, then Wait and pick a facing. You may move and act in either order.'],
+  [null, '【面向與背擊】從背後攻擊，敵人無法閃避，傷害也更高。結束回合時，記得面向敵人。', '[Facing] Strike from behind and the foe can’t dodge and takes more damage. End your turn facing the enemy.'],
+  [null, '【高低差】站在高處攻擊，傷害更高；弓箭也能射得更遠。Q/E 或左上角的按鈕可以旋轉視角。', '[Height] Attacks from high ground hit harder, and arrows fly farther. Q/E or the buttons at top left turn the camera.'],
+  [null, '【行動順序】右上角是接下來的行動順序。速度越快，越常輪到。詠唱型的魔法要等一段時間才會發動。', '[Turn order] The order of upcoming turns is at top right. Faster units act more often. Charged spells take time to go off.'],
+  [null, '【勝利條件】畫面上方是勝利條件。雷恩倒下並不會馬上輸，但全隊倒下就會失敗。', '[Goals] The victory condition is at the top. You only lose if your whole company falls.'],
+];
 // ---------------------------------------------------------------- building and fighting a battle
 // spec: { theme, seed, w, h, lv, foes: [{ k, n, lv, name, who, boss, noDrop, retreat, drops, eq }], guests, goal, music, max, required, treasures }
 async function fight(spec) {
@@ -274,7 +282,8 @@ async function fight(spec) {
     const rnd = Math.random, lv = spec.lv, tier = tierFor(lv);
     const foes = [];
     for (const f of spec.foes) for (let i = 0; i < (f.n || 1); i++) foes.push(makeOne(f, lv, tier, rnd, party));
-    const guests = (spec.guests || []).map((who) => castUnit(who, Math.max(1, Math.round(avgLv())), tier));
+    // story companions fighting beside you are veterans: a few levels above the battle
+    const guests = (spec.guests || []).map((who) => castUnit(who, Math.max(lv, Math.round(avgLv())) + 3, tier));
     const map = makeMap({ theme: spec.theme || 'plains', w: spec.w || 12, h: spec.h || 12, seed: spec.seed || Math.floor(rnd() * 1e6), players: party.length + guests.length, foes: foes.length, treasures: spec.treasures ?? 2 });
     const units = [];
     const starts = [...map.starts];
@@ -287,7 +296,7 @@ async function fight(spec) {
     // the company's gear comes home whatever happens (an enemy thief's haul is returned after the fight)
     const keep = party.map((u) => [u, { ...u.eq }]);
     stopBackdrop();
-    const B = await runBattle({ map, units, goal: spec.goal || { type: 'rout' }, tier, rnd, gold: S.gold, bag: S.bag, flags: S.flags, treasure, music: spec.music });
+    const B = await runBattle({ map, units, goal: spec.goal || { type: 'rout' }, tier, rnd, gold: S.gold, bag: S.bag, flags: S.flags, treasure, music: spec.music, intro: spec.tutorial && !flag('tutorial_seen') ? async () => { setFlag('tutorial_seen'); await playLines(TIPS, { bg: 'rgba(0,0,0,.15)' }); } : null });
     for (const [u, eq] of keep) u.eq = eq;
     S.gold = Math.max(0, B.gold) + B.goldWon;
     S.battles = (S.battles || 0) + 1;
