@@ -9,7 +9,7 @@ import { ELEMENTS, SLOTS } from '../data/core.js';
 import { ITEMS, CONSUMABLES } from '../data/items.js';
 import { STATUS, STATS } from '../data/core.js';
 import { MONSTERS, MDROP } from '../data/monsters.js';
-import { createBattle, advance, beginTurn, endTurn, reachable, moveTo, targetTiles, areaOf, victims, calc, statusChance, perform, plan, canUse, mpCost, forecast, alive, sideOf, ATTACK, itemAction, useItem, checkEnd, live, tileAt, unitAt } from '../core/battle.js';
+import { stealWorth, createBattle, advance, beginTurn, endTurn, reachable, moveTo, targetTiles, areaOf, victims, calc, statusChance, perform, plan, canUse, mpCost, forecast, alive, sideOf, ATTACK, itemAction, useItem, checkEnd, live, tileAt, unitAt } from '../core/battle.js';
 import { jobLv } from '../core/unit.js';
 import { sfx, music } from '../audio.js';
 import { tacticEditor, gearLine } from './party.js';
@@ -329,6 +329,11 @@ export async function runBattle(spec) {
       for (const [id, ch] of a.st || []) parts.push(`${T(STATUS[id].name)} ${statusChance(B, u, v, id, ch)}%`);
       if (c.face && c.face !== 'front') parts.push(c.face === 'back' ? T('背擊', 'Back') : T('側擊', 'Flank'));
       box.append(el('div', { class: 'row small', style: { justifyContent: 'space-between' } }, el('span', { style: { color: v.side === 'foe' ? '#ff9a8a' : '#9ac8ff' } }, nameOf(v)), el('span', {}, parts.join(' · '))));
+      if (a.steal && sideOf(v) !== sideOf(u)) {
+        const w = stealWorth(v, a.steal);
+        const what = a.steal === 'gold' ? T(`約 ${w.worth} 金幣`, `about ${w.worth} gold`) : a.steal === 'exp' ? T(`${20 + v.u.lv} 經驗值`, `${20 + v.u.lv} EXP`) : !w.ids.length && a.steal === 'item' && !v.u.mon ? T('隨機藥品', 'a random potion') : w.ids.length ? w.ids.map(itemName).join(T(' 或 ', ' or ')) : T('沒有東西可偷', 'nothing to steal');
+        box.append(el('div', { class: 'small', style: { color: w.worth ? '#ffd070' : '#ff9a8a', paddingLeft: '8px' } }, T('可偷到：', 'Would take: ') + what + (w.worth ? T(`（價值約 ${Math.round(w.worth)}）`, ` (worth ~${Math.round(w.worth)})`) : '')));
+      }
     }
     return box;
   }
@@ -394,7 +399,7 @@ export async function runBattle(spec) {
     const lbl = (k) => (k === 'wpn' ? T('武器威力', 'Weapon') : T(...STATS[k]));
     const stats = el('div', { class: 'statgrid', style: { gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', fontSize: '13.5px' } }, rows.map(([k, v]) => el('div', {}, el('b', {}, lbl(k)), v)));
     // gear: what each piece does, and whether a thief could lift it
-    const lock = (id) => ITEMS[id] && ITEMS[id].legend && (u.named || u.boss);
+    const lock = (id) => ITEMS[id] && ITEMS[id].legend && u.named;
     const gear = mon ? el('div', { class: 'small dim' }, T('魔物沒有裝備。', 'Monsters wear no gear.'))
       : el('div', { class: 'list', style: { gap: '4px' } }, ['w', 's', 'h', 'b', 'a'].map((k) => { const id = u.u.eq[k], it = id && ITEMS[id];
         return el('div', { class: 'row small', style: { gap: '8px', alignItems: 'flex-start' } }, el('span', { class: 'tag', style: { minWidth: '44px', textAlign: 'center' } }, T(...SLOTS[k])),

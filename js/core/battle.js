@@ -482,6 +482,20 @@ export function addStatus(B, t, id, dur) {
 }
 
 // ---------------------------------------------------------------- stealing, breaking, recruiting, loot
+// what a steal on t would bring, in gold: { worth, ids } (ids: the pieces it could take)
+const legendLocked = (t, id) => ITEMS[id] && ITEMS[id].legend && t.named;
+const priceOf = (id) => { const it = ITEMS[id] || CONSUMABLES[id]; if (!it) return 0; return it.price || (it.legend ? 2500 + (it.tier || 5) * 900 : (it.tier || 1) * 150); };
+export function stealWorth(t, what) {
+  if (what === 'gold') return { worth: 20 + t.u.lv * 25, ids: [] };
+  if (what === 'exp') return { worth: (20 + t.u.lv) * 6, ids: [] };
+  if (what === 'item' || t.u.mon) { const id = t.u.mon ? (MDROP[MONSTERS[t.u.mon].fam] || 'potion') : null; return { worth: id ? priceOf(id) : 190, ids: id ? [id] : [] }; }
+  const slots = what === 'any' ? ['w', 's', 'h', 'b', 'a'] : [what];
+  const ids = slots.map((k) => t.u.eq[k]).filter((id) => id && !legendLocked(t, id));
+  if (!ids.length) return { worth: 0, ids: [] };
+  // taking the weapon or the armour also weakens them in this fight
+  const fight = slots.reduce((n, k) => n + (t.u.eq[k] && !legendLocked(t, t.u.eq[k]) ? (k === 'w' ? 1.35 : k === 'b' ? 1.15 : 1) : 0), 0) / ids.length;
+  return { worth: (ids.reduce((n, id) => n + priceOf(id), 0) / ids.length) * fight * 2.5, ids };
+}
 function doSteal(B, u, t, what) {
   if (what === 'gold') { const g = 20 + t.u.lv * 25; B.goldWon += g; ev(B, { t: 'gold', u: t, n: g }); return; }
   if (what === 'exp') { const n = 20 + t.u.lv; const L = (B.expLog[u.u.uid] = B.expLog[u.u.uid] || { exp: 0, jp: 0, lv: [], jlv: [] }); L.exp += n; gainExp(u.u, n); ev(B, { t: 'text', u, msg: [`偷到 ${n} 經驗值`, `Stole ${n} EXP`] }); return; }
@@ -489,7 +503,7 @@ function doSteal(B, u, t, what) {
   const slots = what === 'any' ? ['w', 's', 'h', 'b', 'a'].filter((k) => t.u.eq[k]) : [what];
   const slot = slots.length ? pick(slots, B.rnd) : null;
   const id = slot && t.u.eq[slot];
-  if (!id || (ITEMS[id] && ITEMS[id].legend && t.named)) { ev(B, { t: 'text', u: t, msg: ['什麼都沒有偷到', 'Nothing to steal'] }); return; }
+  if (!id || legendLocked(t, id)) { ev(B, { t: 'text', u: t, msg: ['什麼都沒有偷到', 'Nothing to steal'] }); return; }
   t.u.eq[slot] = null; B.spoils.push(id); refreshStats(t); t.kit = battleKit(t.u);
   ev(B, { t: 'steal', u: t, item: id });
 }
@@ -650,7 +664,7 @@ function scoreAction(B, u, a, tx, ty, foes, friends, fallen, taunt) {
     }
     for (const [k, p] of a.buf || []) { const has = t.buf.some((b) => b.k === k && (b.p > 0) === (p > 0)); if (!has) s += (p > 0) === !enemy ? 6 : -6; }
     if (a.cure && !enemy && a.cure.some((id) => t.st[id])) s += 30;
-    if (a.steal && enemy) s += 12 * c.hit / 100;
+    if (a.steal && enemy) { const w = stealWorth(t, a.steal).worth; if (w > 0) s += Math.min(30, 3 + (w * c.hit / 100) / 20) * (u.side === "foe" ? 0.6 : 1); else if (!a.d) s -= 5; }
     if (a.mpd && enemy && t.mp > 0) s += 8;
     if (a.invite && enemy) s += 10 * c.hit / 100;
     if (a.quick && !enemy && t !== u) s += 25;

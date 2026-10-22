@@ -70,6 +70,21 @@ try {
           const txt = (document.querySelector('.modal.info') || {}).textContent || '';
           report(`info opened=${opened} foe=${f.u.job || f.u.mon} hasEquip=${txt.includes('裝備')} steal=${txt.includes('可偷')} len=${txt.length}`);
         }
+        else if (stage === 28) {
+          clickText('出擊'); await wait(1500);
+          for (let k = 0; k < 80 && !document.querySelector('.cmd .menu'); k++) { if (document.querySelector('.dialog')) key('Escape'); await wait(250); }
+          const { ABILITIES } = await import('./js/data/jobs.js');
+          const B = window.__B, u = B.turn, f = B.units.find((o) => o.side === 'foe' && !o.gone);
+          const spot = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => [f.x + dx, f.y + dy]).find(([x, y]) => { const t = B.map.tiles[y * B.map.w + x]; return t && !t.block && !t.obj && !B.units.some((o) => !o.gone && o.x === x && o.y === y) && Math.abs(t.h - B.map.tiles[f.y * B.map.w + f.x].h) <= 3; });
+          if (spot) { u.x = spot[0]; u.y = spot[1]; }
+          u.kit.sets[0][1].push(ABILITIES.stealweapon, ABILITIES.stealgold); u.kit.acts.push(ABILITIES.stealweapon, ABILITIES.stealgold);
+          const btn = (t) => [...document.querySelectorAll('.cmd .menu button')].find((b) => b.textContent.includes(t));
+          btn('行動').click(); await wait(300);
+          [...document.querySelectorAll('.cmd .menu button')][1].click(); await wait(300);
+          btn('偷武器').click(); await wait(500);
+          const pv = document.querySelector('.preview');
+          report('steal preview: ' + (pv ? pv.textContent : 'none'));
+        }
         else if (stage === 25) {
           clickText('出擊'); await wait(1500);
           for (let k = 0; k < 80 && !document.querySelector('.cmd .menu'); k++) { if (document.querySelector('.dialog')) key('Escape'); await wait(250); }
