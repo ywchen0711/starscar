@@ -106,5 +106,16 @@ ok('labyrinth floors (first, middle, last) run', lerr === 0, `${lerr} problems`)
 let qerr = 0;
 for (const q of QUESTS.filter((_, i) => i % 3 === 0)) { try { const { B } = fightOut({ theme: q.theme, lv: q.lv, foes: q.foes.map((k) => ({ k })) }, PARTY[Math.min(5, q.ch + 1)], q.lv + 2, 5); if (!B.over) { qerr++; console.log('  unfinished quest', q.id, B.units.filter(alive).map((u) => u.side + ':' + (u.u.mon || u.u.job)).join(' ')); } } catch (err) { qerr++; console.log('ERROR in', q.id, err.message); } }
 ok('tavern jobs run', qerr === 0, `${qerr} problems`);
+// everyone stopped at once (Time Stop on the whole field) must not freeze time
+{
+  const rnd = seeded(9), map = makeMap({ theme: 'plains', seed: 9 }), units = [];
+  map.starts.slice(0, 3).forEach(([x, y]) => units.push({ unit: makeFoe('knight', 10, 2, rnd), side: 'ally', x, y, ai: true }));
+  map.foeStarts.slice(0, 3).forEach(([x, y]) => units.push({ unit: makeFoe('knight', 10, 2, rnd), side: 'foe', x, y }));
+  const B = createBattle({ map, units, rnd, tier: 2 });
+  for (const u of B.units) u.st.stop = 3;
+  let threw = null, turns = 0;
+  try { while (!B.over && turns < 900) { const r = advance(B); if (r.type !== 'turn') continue; const u = r.unit; turns++; if (!beginTurn(B, u)) { checkEnd(B); continue; } const p = plan(B, u); if (p.x !== u.x || p.y !== u.y) moveTo(B, u, p.x, p.y, p.path); if (p.a && alive(u) && !B.over) perform(B, u, p.a, p.tx, p.ty); if (B.turn === u) endTurn(B, u, u.dir); checkEnd(B); } } catch (e) { threw = e.message; }
+  ok('Stop on everyone wears off and the battle goes on', !threw && !!B.over, threw || `${B.over} in ${turns} turns`);
+}
 console.log(fails ? `test: ${fails} FAILED` : 'test: all passed');
 process.exit(fails ? 1 : 0);

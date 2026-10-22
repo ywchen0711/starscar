@@ -72,7 +72,13 @@ export function advance(B) {
     for (const p of B.pending) p.ticks--;
     // a body not revived in time leaves the field (yours come back after the battle)
     for (const u of B.units) if (u.dead && !u.gone && u.deadAt != null && B.tick - u.deadAt > 260) { u.gone = true; ev(B, { t: 'vanish', u }); }
-    for (const u of B.units) if (alive(u) && !u.st.stop && !u.charging && !u.jumping) u.ct += live(u, 'spd');
+    for (const u of B.units) {
+      if (!alive(u) || u.charging || u.jumping) continue;
+      if (!u.st.stop) { u.ct += live(u, 'spd'); continue; }
+      // a stopped unit gains no turns, but Stop wears off with time (one count per turn it would have had)
+      u.stopT = (u.stopT || 0) + live(u, 'spd');
+      if (u.stopT >= 100) { u.stopT -= 100; if (u.st.stop < 90 && --u.st.stop <= 0) { delete u.st.stop; u.stopT = 0; ev(B, { t: 'status', u, id: 'stop', on: false }); } }
+    }
   }
   throw new Error('clock stuck');
 }
@@ -103,6 +109,7 @@ export function beginTurn(B, u) {
   for (const k of Object.keys(u.st)) {
     if (k === 'doom') { u.st.doom--; ev(B, { t: 'count', u, n: u.st.doom }); if (u.st.doom <= 0) { kill(B, u, null); return false; } continue; }
     if (['sleep', 'stop', 'stun'].includes(k)) lose = true;
+    if (k === 'stop') continue;
     if (u.st[k] < 90) { u.st[k]--; if (u.st[k] <= 0) { delete u.st[k]; ev(B, { t: 'status', u, id: k, on: false }); } }
   }
   for (const b of u.buf) b.turns--; u.buf = u.buf.filter((b) => b.turns > 0);

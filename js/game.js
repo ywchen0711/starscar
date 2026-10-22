@@ -432,6 +432,7 @@ async function labyrinth(id) {
 }
 
 // ---------------------------------------------------------------- boot
+import('./ui/battleui.js').then(({ reportError }) => { addEventListener('error', (e) => reportError(e.error || e.message)); addEventListener('unhandledrejection', (e) => reportError(e.reason)); });
 addEventListener('pointerdown', unlock, { once: true });
 initCloud(() => { if (!S) title(); });
 title();

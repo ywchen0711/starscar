@@ -26,7 +26,7 @@ export async function runBattle(spec) {
   view.showLoot = B.units.some((u) => u.side === 'ally' && u.s.flags.find);
   // the frame loop
   let alive2 = true, last = performance.now();
-  const frame = (t) => { if (!alive2) return; view.draw(Math.min(0.05, (t - last) / 1000)); last = t; requestAnimationFrame(frame); };
+  const frame = (t) => { if (!alive2) return; try { view.draw(Math.min(0.05, (t - last) / 1000)); } catch (e) { reportError(e); view.fx = []; } last = t; requestAnimationFrame(frame); };
   requestAnimationFrame(frame);
   // HUD
   const hud = {
@@ -121,18 +121,26 @@ export async function runBattle(spec) {
   // ---------------------------------------------------------------- the main loop
   while (!B.over) {
     refreshTurns();
-    const r = advance(B);
+    let r;
+    try { r = advance(B); } catch (e) { reportError(e); B.over = B.units.some((u) => u.side === 'ally' && alive(u)) ? 'win' : 'lose'; break; }
     await play();
     if (r.type !== 'turn') { refreshTurns(); continue; }
     const u = r.unit;
-    view.cursor = [u.x, u.y];
-    hud.card.style.display = ''; fillCard(hud.card, u);
-    if (!beginTurn(B, u)) { await play(); checkEnd(B); continue; }
-    await play();
-    if (B.over) break;
-    if (u.ai || u.st.berserk || u.st.charm) await aiTurn(u); else await playerTurn(u);
-    checkEnd(B); await play();
-    if (spec.onTurn) await spec.onTurn(B);
+    // whatever goes wrong in one turn, the battle goes on
+    try {
+      view.cursor = [u.x, u.y];
+      hud.card.style.display = ''; fillCard(hud.card, u);
+      if (!beginTurn(B, u)) { await play(); checkEnd(B); continue; }
+      await play();
+      if (B.over) break;
+      if (u.ai || u.st.berserk || u.st.charm) await aiTurn(u); else await playerTurn(u);
+      checkEnd(B); await play();
+      if (spec.onTurn) await spec.onTurn(B);
+    } catch (e) {
+      reportError(e); ev0 = B.events.length; keyTarget = null; clearMarks();
+      if (B.turn === u) endTurn(B, u, u.dir);
+      checkEnd(B);
+    }
   }
   await play();
   // ---------------------------------------------------------------- the end
@@ -303,6 +311,11 @@ export async function runBattle(spec) {
 }
 // screen arrows: right = down-right, down = down-left, left = up-left, up = up-right (before turning the camera)
 const GRID = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+// show an error in the corner (and keep it for a bug report) instead of failing silently
+export function reportError(e) {
+  console.error(e);
+  try { const box = document.getElementById('errbox') || document.body.appendChild(Object.assign(document.createElement('div'), { id: 'errbox' })); Object.assign(box.style, { position: 'fixed', left: '8px', bottom: '8px', maxWidth: '60vw', font: '12px monospace', color: '#ffb0a0', background: 'rgba(40,0,0,.85)', padding: '4px 8px', borderRadius: '4px', zIndex: 99, pointerEvents: 'none' }); box.textContent = '⚠ ' + String((e && (e.stack || e.message)) || e).split(String.fromCharCode(10)).slice(0, 3).join(' | '); setTimeout(() => box.remove(), 15000); } catch (e2) { /* ignore */ }
+}
 const clamp0 = (v, n) => Math.max(0, Math.min(n - 1, v));
 const dirOf = (x0, y0, x1, y1) => { const dx = x1 - x0, dy = y1 - y0; return Math.abs(dx) >= Math.abs(dy) ? (dx >= 0 ? 0 : 2) : (dy >= 0 ? 1 : 3); };
 export const itemName = (id) => (ITEMS[id] ? T(ITEMS[id].name) : CONSUMABLES[id] ? T(CONSUMABLES[id].name) : id);
