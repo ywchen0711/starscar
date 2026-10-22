@@ -4,7 +4,7 @@ import { el, clear, $ui, menu, modal, toast, pushKeys, wait, sheet } from './ui/
 import { runBattle } from './ui/battleui.js';
 import { playLines, chapterCard, rollEnding } from './ui/scene.js';
 import { partyScreen, formation, uname, itemLabel, gearLine } from './ui/party.js';
-import { portrait, person, SPR_W, SPR_H } from './ui/sprites.js';
+import { portrait, person, SPR_W, SPR_H, SPR_SCALE } from './ui/sprites.js';
 import { S, setS, save, load, newGame, initCloud, bagAdd, bagTake, flag, setFlag } from './state.js';
 import { EVENTS, EVENT, CHAPTERS, CAST, ENDING, nextEvent, RECRUIT_NAMES } from './data/story.js';
 import { NODES, LINKS, OPEN_BY_CH, LABYRINTHS, QUESTS } from './data/world.js';
@@ -144,7 +144,7 @@ function world() {
     const dx = walk ? P(NODES[walk.b])[0] - P(NODES[walk.a])[0] : 1, dy = walk ? P(NODES[walk.b])[1] - P(NODES[walk.a])[1] : 1;
     const back = moving && dy < -Math.abs(dx) * 0.6, flip = dx > 0;
     const pose = moving ? (Math.floor(t * 8) % 2 ? 'walk0' : 'walk1') : (Math.floor(t * 2) % 2 ? 'idle0' : 'idle1');
-    const img = person(hero, back, pose), sc = 2.2, w = SPR_W * sc, h = SPR_H * sc, hop = moving ? Math.abs(Math.sin(t * 16)) * 3 : 0;
+    const img = person(hero, back, pose), sc = SPR_SCALE * 1.15, w = SPR_W * sc, h = SPR_H * sc, hop = moving ? Math.abs(Math.sin(t * 16)) * 3 : 0;
     g.fillStyle = 'rgba(0,0,0,.35)'; g.beginPath(); g.ellipse(px, py + 1, 12, 4, 0, 0, Math.PI * 2); g.fill();
     g.save(); g.imageSmoothingEnabled = false; g.translate(px, py - hop); if (flip) g.scale(-1, 1); g.drawImage(img, -w / 2, -h + 4, w, h); g.restore();
     const fx = px + (flip ? -16 : 16), fy = py - hop;

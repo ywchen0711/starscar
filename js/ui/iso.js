@@ -1,7 +1,7 @@
 // The battle map seen from above at an angle: raised columns of ground, the units standing on them,
 // coloured overlays for moving and aiming, and the little effects (numbers, flashes, spell rings).
 import { TERRAIN, ELEMENTS, STATUS } from '../data/core.js';
-import { person, monster, SPR_W, SPR_H, MON_W, MON_H } from './sprites.js';
+import { person, monster, SPR_W, SPR_H, SPR_SCALE, MON_W, MON_H } from './sprites.js';
 import { MONSTERS } from '../data/monsters.js';
 
 export const TW = 64, TH = 32, HS = 12;      // tile width, tile height, pixels per height step
@@ -108,7 +108,7 @@ export class IsoView {
     const { back, flip } = this.facing(an.dir ?? u.dir);
     const pose = u.dead ? 'dead' : an.pose || (Math.floor(this.time * 2 + u.id) % 2 ? 'idle1' : 'idle0');
     const mon = u.u.mon, img = mon ? monster(mon, back, pose) : person(u.u, back, pose);
-    const big = mon ? (MONSTERS[mon].size || 1) : 1, sw = (mon ? MON_W : SPR_W) * 2 * z * big, sh = (mon ? MON_H : SPR_H) * 2 * z * big;
+    const big = mon ? (MONSTERS[mon].size || 1) : 1, sw = (mon ? MON_W * 2 : SPR_W * SPR_SCALE) * z * big, sh = (mon ? MON_H * 2 : SPR_H * SPR_SCALE) * z * big;
     const team = TEAM[u.st && u.st.charm ? (u.side === 'foe' ? 'ally' : 'foe') : u.side] || TEAM.ally;
     g.save(); g.imageSmoothingEnabled = false;
     // a clean ring in the team's colour under the feet (none for the fallen)

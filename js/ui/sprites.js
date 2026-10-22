@@ -3,10 +3,13 @@
 import { JOBS } from '../data/jobs.js';
 import { MONSTERS } from '../data/monsters.js';
 import { ITEMS } from '../data/items.js';
+import { personHD } from './people.js';
 
 const cache = new Map();
 const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
-export const SPR_W = 20, SPR_H = 26;
+// the classic 20 x 26 people (kept for comparison); the game uses the detailed 32 x 42 ones from people.js
+const CW = 20, CH = 26;
+export const SPR_W = 32, SPR_H = 42, SPR_SCALE = 1.25;
 const shade = (hex, k) => {
   const n = parseInt(hex.slice(1), 16); let r = n >> 16, g = (n >> 8) & 255, b = n & 255;
   if (k < 0) { r *= 1 + k; g *= 1 + k; b *= 1 + k; } else { r += (255 - r) * k; g += (255 - g) * k; b += (255 - b) * k; }
@@ -15,11 +18,12 @@ const shade = (hex, k) => {
 
 // ---------------------------------------------------------------- people
 // pose: 'idle0' 'idle1' 'walk0' 'walk1' 'act' 'hurt' 'dead'; back: seen from behind
-export function person(u, back, pose = 'idle0') {
+export const person = (u, back, pose) => personHD(u, back, pose);
+export function personClassic(u, back, pose = 'idle0') {
   const j = JOBS[u.job] || JOBS.sellsword, look = { ...j.look, ...(u.look || {}) }, w = u.eq && u.eq.w && ITEMS[u.eq.w];
-  const key = `p:${u.job}:${look.hair}:${look.skin}:${u.sex}:${w ? w.type : '-'}:${back}:${pose}:${look.body}`;
+  const key = `pc:${u.job}:${look.hair}:${look.skin}:${u.sex}:${w ? w.type : '-'}:${back}:${pose}:${look.body}`;
   if (cache.has(key)) return cache.get(key);
-  const c = mk(SPR_W, SPR_H), g = c.getContext('2d');
+  const c = mk(CW, CH), g = c.getContext('2d');
   const R = (x, y, ww, hh, col) => { g.fillStyle = col; g.fillRect(x, y, ww, hh); };
   const body = look.body || '#7a5a3a', trim = look.trim || '#c8a060', hair = look.hair || '#5a3a1a', skin = look.skin || '#f0d0b0';
   const dark = shade(body, -0.35), light = shade(body, 0.25);
@@ -53,7 +57,7 @@ export function person(u, back, pose = 'idle0') {
   headgear(R, look.head, ox, oy, trim, body, back);
   // weapon
   weapon(g, R, w ? w.type : null, ox, oy, pose, back);
-  if (pose === 'hurt') { g.globalCompositeOperation = 'source-atop'; g.fillStyle = 'rgba(255,80,80,.35)'; g.fillRect(0, 0, SPR_W, SPR_H); g.globalCompositeOperation = 'source-over'; }
+  if (pose === 'hurt') { g.globalCompositeOperation = 'source-atop'; g.fillStyle = 'rgba(255,80,80,.35)'; g.fillRect(0, 0, CW, CH); g.globalCompositeOperation = 'source-over'; }
   cache.set(key, c); return c;
 }
 function headgear(R, kind, ox, oy, trim, body, back) {
@@ -156,6 +160,6 @@ export function portrait(u, size = 64) {
   const c = mk(size, size), g = c.getContext('2d'); g.imageSmoothingEnabled = false;
   g.fillStyle = '#1a1830'; g.fillRect(0, 0, size, size);
   if (u.mon) g.drawImage(monster(u.mon, false), 0, 0, MON_W, MON_H, 0, 0, size, size);
-  else g.drawImage(person(u, false), 2, 0, 16, 16, 0, 2, size, size);
+  else g.drawImage(person(u, false), 7, 0, 18, 18, 0, 2, size, size);
   cache.set(key, c); return c;
 }
