@@ -58,6 +58,21 @@ try {
           const sel = document.querySelector('.modal select'); if (sel) { sel.value = 'skill'; sel.dispatchEvent(new Event('change')); } await wait(300);
           report('orders sheet selects=' + document.querySelectorAll('.modal select').length);
         }
+        else if (stage === 25) {
+          clickText('出擊'); await wait(1500);
+          for (let k = 0; k < 80 && !document.querySelector('.cmd .menu'); k++) { if (document.querySelector('.dialog')) key('Escape'); await wait(250); }
+          const B = window.__B, u = B.turn, v = window.__view;
+          key('e'); await wait(100); key('e'); await wait(900); v.turnBy(0.35); v.tilt(0.1); await wait(300);
+          const ang = Math.round(v.angle * 180 / Math.PI);
+          const mv = [...document.querySelectorAll('.cmd .menu button')].find((b) => b.textContent.includes('移動')); mv.click(); await wait(400);
+          const marks = [...v.marks.keys()].map((k) => k.split(',').map(Number)).filter(([x, y]) => x !== u.x || y !== u.y);
+          const [tx, ty] = marks[marks.length >> 1]; const t = B.map.tiles[ty * B.map.w + tx];
+          const [sx, sy] = v.project(tx + .5, ty + .5, t.h); const cv = document.querySelector('canvas'), r = cv.getBoundingClientRect();
+          const cx = r.left + sx * r.width / cv.width, cy = r.top + sy * r.height / cv.height;
+          cv.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: cx, clientY: cy })); await wait(400);
+          if (document.querySelector('.cmd .menu')) key('Enter'); await wait(2500);
+          const [ux, uy] = v.sp(u.x, u.y, B.map.tiles[u.y * B.map.w + u.x].h); report(`rotate ang=${ang} map=${B.map.w}x${B.map.h} target=${tx},${ty} unit=${u.x},${u.y} start=${u.startX},${u.startY} cursor=${v.cursor} unitpx=${ux|0},${uy|0} cw=${cv.width}`);
+        }
         else if (stage === 23) {
           clickText('出擊'); await wait(1500);
           for (let k = 0; k < 80 && !document.querySelector('.cmd .menu'); k++) { if (document.querySelector('.dialog')) key('Escape'); await wait(250); }

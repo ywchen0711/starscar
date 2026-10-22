@@ -322,7 +322,8 @@ async function fight(spec) {
     for (const f of spec.foes) for (let i = 0; i < (f.n || 1); i++) foes.push(makeOne(f, lv, tier, rnd, party));
     // story companions fighting beside you are veterans: a few levels above the battle
     const guests = (spec.guests || []).map((who) => castUnit(who, Math.max(lv, Math.round(avgLv())) + 3, tier));
-    const map = makeMap({ theme: spec.theme || 'plains', w: spec.w || 12, h: spec.h || 12, seed: spec.seed || Math.floor(rnd() * 1e6), players: party.length + guests.length, foes: foes.length, treasures: spec.treasures ?? 2 });
+    // bigger fields than the story's sizes: three more tiles each way (15 × 15 by default)
+    const map = makeMap({ theme: spec.theme || 'plains', w: (spec.w || 12) + 3, h: (spec.h || 12) + 3, seed: spec.seed || Math.floor(rnd() * 1e6), players: party.length + guests.length, foes: foes.length, treasures: spec.treasures ?? 2 });
     const units = [];
     const starts = [...map.starts];
     for (const u of party) { const [x, y] = starts.shift(); units.push({ unit: u, side: 'ally', x, y, leader: u.who === 'ren' }); }

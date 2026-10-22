@@ -26,7 +26,7 @@ export async function runBattle(spec) {
   const resize = () => { const r = devicePixelRatio || 1; cv.width = innerWidth * Math.min(r, 2); cv.height = innerHeight * Math.min(r, 2); if (view.map) view.fit(); };
   addEventListener('resize', resize); resize();
   const B = createBattle(spec);
-  window.__B = B;
+  window.__B = B; window.__view = view;
   view.setMap(B.map); view.units = B.units; view.treasure = B.treasure;
   view.showLoot = B.units.some((u) => u.side === 'ally' && u.s.flags.find);
   // the frame loop
@@ -40,11 +40,12 @@ export async function runBattle(spec) {
     card: el('div', { class: 'panel unitcard', style: { display: 'none' } }),
     hover: el('div', { class: 'panel unitcard right', style: { display: 'none' } }),
     cmd: el('div', { class: 'cmd' }),
-    help: el('div', { class: 'helpline' }, T('點地圖選擇 · Q/E 旋轉視角 · Z/Enter 確定 · X/Esc 取消', 'Tap the map · Q/E rotate · Z/Enter confirm · X/Esc back')),
+    help: el('div', { class: 'helpline' }, T('點地圖選擇 · 拖曳移動視角 · 右鍵/Shift 拖曳旋轉 · 滾輪縮放 · Q/E 旋轉 · Z 確定 · X 取消', 'Tap to choose · drag to pan · right/Shift-drag to turn · wheel to zoom · Q/E turn · Z ok · X back')),
   };
   const cam = el('div', { class: 'cambtns' },
     el('button', { class: 'btn', title: 'Q', onclick: () => view.rotate(-1) }, '⟲'), el('button', { class: 'btn', title: 'E', onclick: () => view.rotate(1) }, '⟳'),
-    el('button', { class: 'btn', onclick: () => { view.zoomK = (view.zoomK || 1) >= 1.4 ? 0.8 : (view.zoomK || 1) + 0.3; view.fit(); } }, '🔍'),
+    el('button', { class: 'btn', title: '+', onclick: () => view.zoomBy(1.2) }, '＋'), el('button', { class: 'btn', title: '-', onclick: () => view.zoomBy(1 / 1.2) }, '－'),
+    el('button', { class: 'btn', title: T('重設視角', 'Reset view'), onclick: () => { view.target = Math.PI / 4; view.pitch = 0.5; view.zoomUser = 1; view.panX = 0; view.panY = 0; } }, '⌂'),
     el('button', { class: 'btn', onclick: (e) => { FAST = !FAST; e.target.textContent = FAST ? '▶▶' : '▶'; } }, FAST ? '▶▶' : '▶'),
     el('button', { class: 'btn' + (AUTO ? ' primary' : ''), id: 'autobtn', title: T('自動作戰', 'Auto-battle'), onclick: () => toggleAuto() }, T('自動', 'Auto')),
     el('button', { class: 'btn', title: T('自動作戰方針', 'Auto-battle orders'), onclick: () => ordersSheet() }, T('方針', 'Orders')));
@@ -72,9 +73,33 @@ export async function runBattle(spec) {
   const move = (e) => { const t = pt(e); hoverTile = t; if (onHover) onHover(t); else view.cursor = t; showHover(t); };
   let onHover = null;
   cv.addEventListener('mousemove', move);
-  cv.addEventListener('click', (e) => { const t = pt(e); if (t && onTile) onTile(t); else if (t) showHover(t); });
+  cv.addEventListener('click', (e) => { if (dragged) { dragged = false; return; } const t = pt(e); if (t && onTile) onTile(t); else if (t) showHover(t); });
   const showHover = (t) => { const u = t && unitAt(B, t[0], t[1]); if (u && u !== B.turn) { hud.hover.style.display = ''; fillCard(hud.hover, u); } else hud.hover.style.display = 'none'; };
-  const offKeys = pushKeys((k) => { if (k === 'rotl') view.rotate(-1); else if (k === 'rotr') view.rotate(1); else if (keyTarget) keyTarget(k); });
+  const offKeys = pushKeys((k) => { if (k !== 'rotl' && k !== 'rotr' && keyTarget) keyTarget(k); });
+  // the camera answers at any moment, menu open or not: Q/E turn, +/- zoom
+  const camKeys = (e) => { if (e.target && e.target.tagName === 'INPUT') return; const k = e.key; if (k === 'q' || k === 'Q') view.rotate(-1); else if (k === 'e' || k === 'E') view.rotate(1); else if (k === '+' || k === '=') view.zoomBy(1.2); else if (k === '-' || k === '_') view.zoomBy(1 / 1.2); };
+  addEventListener('keydown', camKeys);
+  // dragging: left drags the map, right (or Shift) drags turn and tilt it; two fingers pinch to zoom and twist to turn
+  const ptrs = new Map(); let dragged = false, last2 = null;
+  cv.addEventListener('contextmenu', (e) => e.preventDefault());
+  cv.addEventListener('pointerdown', (e) => { ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, btn: e.button, shift: e.shiftKey }); dragged = false; last2 = null; try { cv.setPointerCapture(e.pointerId); } catch (er) { /* ignore */ } });
+  cv.addEventListener('pointermove', (e) => {
+    const p = ptrs.get(e.pointerId); if (!p) return;
+    const r = cv.width / cv.getBoundingClientRect().width, dx = (e.clientX - p.x) * r, dy = (e.clientY - p.y) * r;
+    if (Math.hypot(e.clientX - p.x0, e.clientY - p.y0) > 6) dragged = true;
+    if (ptrs.size === 2) {
+      const [a, b] = [...ptrs.values()].map((q) => (q === p ? { x: e.clientX, y: e.clientY } : q));
+      const d = Math.hypot(b.x - a.x, b.y - a.y), ang = Math.atan2(b.y - a.y, b.x - a.x);
+      if (last2) { view.zoomBy(d / Math.max(1, last2.d)); view.turnBy(ang - last2.ang); }
+      last2 = { d, ang };
+    } else if (dragged) {
+      if (p.btn === 2 || p.btn === 1 || p.shift) { view.turnBy(dx * 0.008); view.tilt(-dy * 0.002); } else view.pan(dx, dy);
+    }
+    p.x = e.clientX; p.y = e.clientY;
+  });
+  const up = (e) => { ptrs.delete(e.pointerId); if (ptrs.size < 2) last2 = null; };
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+  cv.addEventListener('wheel', (e) => { e.preventDefault(); view.zoomBy(e.deltaY < 0 ? 1.12 : 1 / 1.12); }, { passive: false });
   let keyTarget = null;
   let lastAim = [0, 0];      // where the last aimed action went (items use it)
 
@@ -173,7 +198,7 @@ export async function runBattle(spec) {
   await play();
   // ---------------------------------------------------------------- the end
   view.fx = []; view.marks.clear(); view.cursor = null; try { view.draw(0); } catch (e) { /* ignore */ }
-  alive2 = false; offKeys(); removeEventListener('resize', resize);
+  alive2 = false; offKeys(); removeEventListener('resize', resize); removeEventListener('keydown', camKeys);
   banner(B.over === 'win' ? T('勝利！', 'Victory!') : T('戰敗……', 'Defeat…'), B.over === 'win' ? '#ffe08a' : '#ff9a8a');
   sfx(B.over === 'win' ? 'win' : 'lose');
   await wait(1400);
