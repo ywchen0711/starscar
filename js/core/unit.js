@@ -57,9 +57,9 @@ export function stats(u) {
     for (const k of ['dual', 'halfmp', 'steal', 'jp', 'exp', 'hit', 'ct', 'itemr', 'itempow', 'status', 'gold', 'invite', 'drain', 'healpow', 'songpow', 'lowhp', 'unarmed', 'vsbeast', 'twohand', 'tele', 'ign', 'find', 'water', 'terrain', 'hp', 'mp']) if (p[k]) s.flags[k] = (s.flags[k] || 0) + (p[k] === true ? 1 : p[k]);
     if (p.el) s.el = s.el || p.el; if (p.elpow) s.flags['el_' + p.elpow] = (s.flags['el_' + p.elpow] || 0) + p.p; if (p.wpow) { s.flags['w_' + p.wpow] = p.p; if (p.wpow2) s.flags['w_' + p.wpow2] = p.p; }
   }
-  if (!s.wtype && !mon) { s.wpn = r0(s.atk * 0.25 * (1 + (s.flags.unarmed || 0) / 100)); s.wtype = 'fist'; }
+  if (!s.wtype && !mon) { s.wpn = r0(s.atk * 0.15 * (1 + (s.flags.unarmed || 0) / 100)); s.wtype = 'fist'; }
   if (mon) { s.wpn = r0(s.atk * 0.35); s.wtype = 'monster'; }
-  if (s.twohand && s.wtype && !s.two && !u.eq.s) s.wpn = r0(s.wpn * 1.5);
+  if (s.flags.twohand && s.wtype && s.wtype !== 'fist' && !s.two && !u.eq.s) s.wpn = r0(s.wpn * 1.5);
   return s;
 }
 

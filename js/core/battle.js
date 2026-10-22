@@ -106,6 +106,8 @@ export function beginTurn(B, u) {
     if (u.st[k] < 90) { u.st[k]--; if (u.st[k] <= 0) { delete u.st[k]; ev(B, { t: 'status', u, id: k, on: false }); } }
   }
   for (const b of u.buf) b.turns--; u.buf = u.buf.filter((b) => b.turns > 0);
+  if (u.flags.taunted && --u.flags.tauntT <= 0) u.flags.taunted = 0;
+  if (u.flags.rangeUp) u.flags.rangeUp--;
   if (lose) { endTurn(B, u, u.dir); return false; }
   return true;
 }
@@ -400,7 +402,7 @@ function applyTo(B, u, t, a) {
   if (a.d && c.dmg > 0) {
     let n = c.dmg * (0.9 + B.rnd() * 0.2);
     if (c.crit && B.rnd() * 100 < c.crit) { n *= 1.5; ev(B, { t: 'crit', u: t }); }
-    if (trig(['dmgcut'])) { ev(B, { t: 'react', u: t, a: t.kit.react }); n *= 0.5; }
+    if (trig(['dmgcut', 'guard'])) { ev(B, { t: 'react', u: t, a: t.kit.react }); n *= 0.5; }
     n = Math.max(1, r0(n));
     if (trig(['mpshield']) && t.mp > 0) { ev(B, { t: 'react', u: t, a: t.kit.react }); const m = Math.min(t.mp, n); t.mp -= m; n -= m; ev(B, { t: 'mp', u: t, n: -m }); }
     if (n > 0) { dealt = hurt(B, t, n, u, { el: c.el, a }); }
@@ -498,7 +500,8 @@ function doInvite(B, u, t) {
 function dropFrom(B, t) {
   t.dropped = true;
   if (t.noDrop) return;
-  B.goldWon += r0((10 + t.u.lv * 8) * (t.boss ? 5 : 1));
+  const fortune = 1 + Math.max(0, ...B.units.filter((u) => u.side === 'ally' && !u.dead).map((u) => u.s.flags.gold || 0)) / 100;
+  B.goldWon += r0((10 + t.u.lv * 8) * (t.boss ? 5 : 1) * fortune);
   if (t.u.mon) {
     if (B.rnd() < 0.45 || t.boss) B.spoils.push(MDROP[MONSTERS[t.u.mon].fam] || 'potion');
     if (B.rnd() < 0.18 || t.boss) { const pool = GEAR.filter((g) => !g.legend && g.tier === clamp(B.tier + (t.boss ? 1 : 0), 1, 10)); if (pool.length) B.spoils.push(pick(pool, B.rnd).id); }
