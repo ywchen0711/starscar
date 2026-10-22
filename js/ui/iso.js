@@ -1,12 +1,30 @@
 // The battle map seen from above at an angle: raised columns of ground, the units standing on them,
 // coloured overlays for moving and aiming, and the little effects (numbers, flashes, spell rings).
-import { TERRAIN, ELEMENTS } from '../data/core.js';
+import { TERRAIN, ELEMENTS, STATUS } from '../data/core.js';
 import { person, monster, SPR_W, SPR_H, MON_W, MON_H } from './sprites.js';
 import { MONSTERS } from '../data/monsters.js';
 
 export const TW = 64, TH = 32, HS = 12;      // tile width, tile height, pixels per height step
 const shade = (hex, k) => { const n = parseInt(hex.slice(1), 16); let r = n >> 16, g = (n >> 8) & 255, b = n & 255; if (k < 0) { r *= 1 + k; g *= 1 + k; b *= 1 + k; } else { r += (255 - r) * k; g += (255 - g) * k; b += (255 - b) * k; } return `rgb(${r | 0},${g | 0},${b | 0})`; };
 
+// team colours: ring under the feet, outline round the sprite, a soft fill
+const TEAM = {
+  ally: { ring: '#5aa8ff', edge: '#3a7ae0', soft: 'rgba(80,150,255,.22)' },
+  guest: { ring: '#6ae08a', edge: '#2aa85a', soft: 'rgba(90,220,130,.2)' },
+  foe: { ring: '#ff6a5a', edge: '#d0302a', soft: 'rgba(255,90,80,.22)' },
+};
+const outlineCache = new Map();
+// the sprite with a one-pixel outline of a colour around it (cached)
+function outlined(img, col) {
+  let m = outlineCache.get(img); if (!m) { m = new Map(); outlineCache.set(img, m); }
+  if (m.has(col)) return m.get(col);
+  const c = document.createElement('canvas'); c.width = img.width + 2; c.height = img.height + 2; const g = c.getContext('2d');
+  const sil = document.createElement('canvas'); sil.width = img.width; sil.height = img.height; const sg = sil.getContext('2d');
+  sg.drawImage(img, 0, 0); sg.globalCompositeOperation = 'source-in'; sg.fillStyle = col; sg.fillRect(0, 0, sil.width, sil.height);
+  for (const [dx, dy] of [[0, 1], [2, 1], [1, 0], [1, 2], [0, 0], [2, 2], [0, 2], [2, 0]]) g.drawImage(sil, dx, dy);
+  g.drawImage(img, 1, 1);
+  m.set(col, c); return c;
+}
 export class IsoView {
   constructor(canvas) {
     this.cv = canvas; this.g = canvas.getContext('2d');
@@ -36,6 +54,9 @@ export class IsoView {
     const g = this.g, W = this.cv.width, H = this.cv.height, map = this.map;
     const sky = map.dark ? ['#0a0a14', '#1a1626'] : map.theme === 'sky' || map.theme === 'void' ? ['#1a2a5a', '#6a7ac8'] : ['#1a2238', '#3a4a6a'];
     const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, sky[0]); gr.addColorStop(1, sky[1]); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    // a soft light behind the field and darker corners, so the map sits in a spotlight
+    const glow = g.createRadialGradient(W / 2, H * 0.55, 0, W / 2, H * 0.55, Math.max(W, H) * 0.6); glow.addColorStop(0, 'rgba(255,240,210,.10)'); glow.addColorStop(1, 'rgba(255,240,210,0)'); g.fillStyle = glow; g.fillRect(0, 0, W, H);
+    const vig = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.45, W / 2, H / 2, Math.max(W, H) * 0.8); vig.addColorStop(0, 'rgba(0,0,0,0)'); vig.addColorStop(1, 'rgba(0,0,0,.45)'); g.fillStyle = vig; g.fillRect(0, 0, W, H);
     if (!map) return;
     const z = this.zoom, order = map.tiles.map((t) => ({ t, k: this.rc(t.x, t.y) })).sort((a, b) => a.k[0] + a.k[1] - (b.k[0] + b.k[1]) || a.k[0] - b.k[0]);
     const byTile = new Map(); for (const u of this.units) if (!u.gone && !u.jumping) byTile.set(`${u.x},${u.y}`, u);
@@ -59,13 +80,16 @@ export class IsoView {
     let top = T.top;
     if (water) top = shade(T.top, Math.sin(this.time * 2 + t.x + t.y) * 0.08);
     if (lava) top = shade(T.top, Math.sin(this.time * 3 + t.x * 2) * 0.15);
+    if (!water && !lava) top = shade(top, Math.min(0.22, t.h * 0.03) - 0.04);
     g.fillStyle = top; g.beginPath(); g.moveTo(cx, cy - hh); g.lineTo(cx + hw, cy); g.lineTo(cx, cy + hh); g.lineTo(cx - hw, cy); g.closePath(); g.fill();
-    g.strokeStyle = 'rgba(0,0,0,.18)'; g.lineWidth = 1; g.stroke();
+    // a light rim on the far edges and a dark one on the near edges make each step read clearly
+    g.lineWidth = 1; g.strokeStyle = 'rgba(255,255,255,.16)'; g.beginPath(); g.moveTo(cx - hw, cy); g.lineTo(cx, cy - hh); g.lineTo(cx + hw, cy); g.stroke();
+    g.strokeStyle = 'rgba(0,0,0,.28)'; g.beginPath(); g.moveTo(cx - hw, cy); g.lineTo(cx, cy + hh); g.lineTo(cx + hw, cy); g.stroke();
     // a little texture on grass and stone
-    if (!water && !lava) { g.fillStyle = shade(T.top, -0.12); for (let i = 0; i < 3; i++) { const sx = ((t.x * 13 + t.y * 7 + i * 5) % 10) / 10 - 0.5, sy = ((t.x * 3 + t.y * 11 + i * 7) % 10) / 10 - 0.5; g.fillRect(cx + sx * hw * 0.9, cy + sy * hh * 0.9, 2 * z, 2 * z); } }
+    if (!water && !lava && (t.x * 7 + t.y * 3) % 4 === 0) { g.fillStyle = shade(T.top, -0.08); for (let i = 0; i < 2; i++) { const sx = ((t.x * 13 + t.y * 7 + i * 5) % 10) / 10 - 0.5, sy = ((t.x * 3 + t.y * 11 + i * 7) % 10) / 10 - 0.5; g.fillRect(cx + sx * hw * 0.9, cy + sy * hh * 0.9, 2 * z, 2 * z); } }
     // overlays
     const m = this.marks.get(`${t.x},${t.y}`);
-    if (m) { g.fillStyle = m; g.beginPath(); g.moveTo(cx, cy - hh); g.lineTo(cx + hw, cy); g.lineTo(cx, cy + hh); g.lineTo(cx - hw, cy); g.closePath(); g.fill(); }
+    if (m) { const k = 0.82; g.fillStyle = m; g.beginPath(); g.moveTo(cx, cy - hh * k); g.lineTo(cx + hw * k, cy); g.lineTo(cx, cy + hh * k); g.lineTo(cx - hw * k, cy); g.closePath(); g.fill(); g.strokeStyle = m.replace(/[\d.]+\)$/, '0.95)'); g.lineWidth = 1.5; g.stroke(); }
     if (this.cursor && this.cursor[0] === t.x && this.cursor[1] === t.y) { g.strokeStyle = '#fff'; g.lineWidth = 2.5; g.beginPath(); g.moveTo(cx, cy - hh); g.lineTo(cx + hw, cy); g.lineTo(cx, cy + hh); g.lineTo(cx - hw, cy); g.closePath(); g.stroke(); g.lineWidth = 1; }
     if (this.showLoot && this.treasure.some((q) => q.x === t.x && q.y === t.y && !q.taken)) { const s = (Math.sin(this.time * 5 + t.x) + 1) / 2; g.fillStyle = `rgba(255,230,120,${0.4 + s * 0.6})`; g.beginPath(); g.arc(cx, cy, (3 + s * 3) * z, 0, Math.PI * 2); g.fill(); }
     // things standing on the tile
@@ -85,24 +109,34 @@ export class IsoView {
     const pose = u.dead ? 'dead' : an.pose || (Math.floor(this.time * 2 + u.id) % 2 ? 'idle1' : 'idle0');
     const mon = u.u.mon, img = mon ? monster(mon, back, pose) : person(u.u, back, pose);
     const big = mon ? (MONSTERS[mon].size || 1) : 1, sw = (mon ? MON_W : SPR_W) * 2 * z * big, sh = (mon ? MON_H : SPR_H) * 2 * z * big;
+    const team = TEAM[u.st && u.st.charm ? (u.side === 'foe' ? 'ally' : 'foe') : u.side] || TEAM.ally;
     g.save(); g.imageSmoothingEnabled = false;
-    if (u.side === 'foe' && !u.dead) { g.fillStyle = 'rgba(255,70,70,.28)'; g.beginPath(); g.ellipse(cx, cy, 16 * z, 7 * z, 0, 0, Math.PI * 2); g.fill(); }
-    else if (!u.dead && u.side !== 'foe') { g.fillStyle = u.side === 'guest' ? 'rgba(120,255,160,.25)' : 'rgba(90,160,255,.28)'; g.beginPath(); g.ellipse(cx, cy, 16 * z, 7 * z, 0, 0, Math.PI * 2); g.fill(); }
+    // a clean ring in the team's colour under the feet (none for the fallen)
+    if (!u.dead) {
+      const rx = 17 * z * big, ry = 7.5 * z * big;
+      g.fillStyle = team.soft; g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = team.ring; g.lineWidth = Math.max(1.5, 2 * z); g.beginPath(); g.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); g.stroke();
+    }
+    if (u.charging) { const s = (Math.sin(this.time * 6) + 1) / 2; g.strokeStyle = `rgba(190,170,255,${0.4 + s * 0.5})`; g.lineWidth = 2; g.beginPath(); g.ellipse(cx, cy, 23 * z, 10 * z, 0, 0, Math.PI * 2); g.stroke(); }
     if (an.flash) g.filter = 'brightness(2.2)';
-    if (u.st && u.st.stop) g.filter = 'grayscale(1)';
-    if (u.charging) { const s = (Math.sin(this.time * 6) + 1) / 2; g.strokeStyle = `rgba(160,200,255,${0.4 + s * 0.5})`; g.lineWidth = 2; g.beginPath(); g.ellipse(cx, cy, 20 * z, 9 * z, 0, 0, Math.PI * 2); g.stroke(); }
+    else if (u.st && u.st.stop) g.filter = 'grayscale(1)';
     g.translate(cx, cy + 4 * z); if (flip) g.scale(-1, 1);
-    g.drawImage(img, -sw / 2, -sh + (mon ? 4 * z : 0), sw, sh);
+    // the sprite with a thin outline in the team's colour, so friend and foe never blur together
+    const pad = 2 * z * big;
+    g.drawImage(u.dead ? img : outlined(img, team.edge), -sw / 2 - (u.dead ? 0 : pad), -sh + (mon ? 4 * z : 0) - (u.dead ? 0 : pad), sw + (u.dead ? 0 : pad * 2), sh + (u.dead ? 0 : pad * 2));
     g.restore();
-    // health bar over the head
     if (!u.dead && u.s) {
-      const bw = 26 * z, bx = cx - bw / 2, by = cy - sh - 4 * z, p = Math.max(0, u.hp / u.s.hp);
-      g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(bx - 1, by - 1, bw + 2, 5 * z + 2);
-      g.fillStyle = p > 0.5 ? '#5ad06a' : p > 0.25 ? '#e0c040' : '#e05a4a'; g.fillRect(bx, by, bw * p, 3 * z);
-      if (u.s.mp) { g.fillStyle = '#4a8aff'; g.fillRect(bx, by + 3 * z, bw * (u.mp / u.s.mp), 2 * z); }
-      const icons = Object.keys(u.st || {}).filter((k) => u.st[k] < 90);
-      if (icons.length) { g.font = `${9 * z}px sans-serif`; g.fillStyle = '#fff'; g.fillText(icons.length > 1 ? '✦' + icons.length : '✦', bx + bw + 2, by + 5 * z); }
-      if (u.boss) { g.fillStyle = '#ffd040'; g.font = `bold ${10 * z}px sans-serif`; g.fillText('♛', bx - 11 * z, by + 5 * z); }
+      // a slim health bar, framed in the team's colour
+      const bw = 24 * z, bx = cx - bw / 2, by = cy - sh - 3 * z, p = Math.max(0, u.hp / u.s.hp);
+      g.fillStyle = 'rgba(10,10,20,.75)'; g.fillRect(bx - 1, by - 1, bw + 2, 3 * z + 2);
+      g.fillStyle = p > 0.5 ? '#6ad87a' : p > 0.25 ? '#e8c84a' : '#ef5a4a'; g.fillRect(bx, by, bw * p, 3 * z);
+      g.strokeStyle = team.ring; g.lineWidth = 1; g.strokeRect(bx - 1.5, by - 1.5, bw + 3, 3 * z + 3);
+      // statuses as small coloured dots
+      const sts = Object.keys(u.st || {}).filter((k) => u.st[k] < 90 && STATUS[k]).slice(0, 5);
+      sts.forEach((k, i) => { g.fillStyle = STATUS[k].col; g.beginPath(); g.arc(bx + 3 * z + i * 6 * z, by - 4 * z, 2.4 * z, 0, Math.PI * 2); g.fill(); g.strokeStyle = 'rgba(0,0,0,.6)'; g.lineWidth = 1; g.stroke(); });
+      if (u.boss) { g.fillStyle = '#ffd040'; g.font = `bold ${11 * z}px sans-serif`; g.textAlign = 'center'; g.fillText('♛', cx, by - 7 * z - (sts.length ? 5 * z : 0)); g.textAlign = 'left'; }
+      // whose turn it is: a bobbing gold arrow
+      if (this.active === u) { const ay = by - 10 * z - Math.abs(Math.sin(this.time * 4)) * 5 * z - (u.boss || sts.length ? 9 * z : 0); g.fillStyle = '#ffd860'; g.strokeStyle = '#3a2a10'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(cx - 6 * z, ay - 7 * z); g.lineTo(cx + 6 * z, ay - 7 * z); g.lineTo(cx, ay); g.closePath(); g.fill(); g.stroke(); }
     }
     u._sx = cx; u._sy = cy;
   }

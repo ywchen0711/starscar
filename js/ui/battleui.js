@@ -141,6 +141,7 @@ export async function runBattle(spec) {
   function banner(text, col = '#ffe9a8') { bannerEl.textContent = text; bannerEl.style.color = col; bannerEl.style.display = ''; clearTimeout(bannerT); bannerT = setTimeout(() => { bannerEl.style.display = 'none'; }, FAST ? 500 : 1100); }
 
   // ---------------------------------------------------------------- the opening words, if any
+  refreshTurns();
   if (spec.intro) await spec.intro();
   music(spec.music || 'battle');
 
@@ -154,7 +155,7 @@ export async function runBattle(spec) {
     const u = r.unit;
     // whatever goes wrong in one turn, the battle goes on
     try {
-      view.cursor = [u.x, u.y];
+      view.cursor = [u.x, u.y]; view.active = u;
       hud.card.style.display = ''; fillCard(hud.card, u);
       if (!beginTurn(B, u)) { await play(); checkEnd(B); continue; }
       await play();

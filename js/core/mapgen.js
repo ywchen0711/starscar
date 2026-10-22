@@ -110,13 +110,17 @@ function build(theme, w, h, seed, players, foes, treasures, foeSide, force = fal
   if (!force && !connected(tiles, w, h, pz[0], fz)) return null;
   // centre the players' start, spread the foes
   pz.sort((a, b) => Math.abs(a.x - w / 2) + a.y * -0.1 - (Math.abs(b.x - w / 2) + b.y * -0.1));
-  const fpick = []; const fz2 = [...fz]; while (fpick.length < foes && fz2.length) fpick.push(fz2.splice(Math.floor(rnd() * fz2.length), 1)[0]);
+  // leave a little room between people: take spaced-out tiles first, the rest after
+  const spread = (list) => { const pick = []; for (const c of list) if (pick.every((p) => Math.max(Math.abs(p.x - c.x), Math.abs(p.y - c.y)) >= 2)) pick.push(c); return [...pick, ...list.filter((c) => !pick.includes(c))]; };
+  pz = spread(pz);
+  const fz2 = spread(shuffleWith([...fz], rnd)), fpick = fz2.slice(0, foes);
   // treasure buried somewhere in the middle (only a Treasure Hunter sees it shine)
   const mid = tiles.filter((c) => open(c) && c.y > 2 && c.y < h - 3 && !pz.includes(c) && !fz.includes(c));
   const loot = []; for (let k = 0; k < treasures && mid.length; k++) loot.push(mid.splice(Math.floor(rnd() * mid.length), 1)[0]);
   return { w, h, theme, dark: !!T.dark, tiles, starts: pz.slice(0, Math.max(players, 8)).map((c) => [c.x, c.y]), foeStarts: fpick.map((c) => [c.x, c.y]), treasure: loot.map((c) => [c.x, c.y]), seed };
 }
 
+const shuffleWith = (a, rnd) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 function connected(tiles, w, h, from, targets) {
   if (!from) return false;
   const seen = new Set([from.y * w + from.x]), q = [from];
