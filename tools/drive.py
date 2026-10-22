@@ -13,7 +13,7 @@ const clickText = (t) => { const b = [...document.querySelectorAll('button')].fi
 const report = (m) => { document.title = m + ' | errs: ' + window.__errs.join(' || '); };
 try {
   await wait(800);
-  if (stage >= 8) {
+  if (stage >= 8 && stage < 15) {
     const st = await import('./js/state.js'), un = await import('./js/core/unit.js');
     const S = st.newGame('Ren'); S.ch = 2; S.node = 'saltreach'; S.gold = 20000; S.visited = ['aldmoor', 'greystone', 'saltreach', 'heronmoor'];
     for (const [j, who, n] of [['cleric', 'sylla', ['希兒', 'Sylla']], ['thief', 'rowena', ['洛溫娜', 'Rowena']], ['monk', 'bram', ['布倫', 'Bram']], ['corsair', 'marlow', ['瑪洛', 'Marlow']]]) { const u = un.makeUnit({ who, name: n, job: j, lv: 14 }); un.dressFoe(u, 3, Math.random); un.gainJp(u, 900, j); S.roster.push(u); }
@@ -46,6 +46,24 @@ try {
       else {
         key('Escape'); await wait(500);
         if (stage === 4) report('formation');
+        else if (stage === 15) {
+          clickText('出擊'); await wait(2500);
+          const out = [];
+          for (let turn = 0; turn < 4; turn++) {
+            for (let k = 0; k < 60 && !document.querySelector('.cmd .menu'); k++) { if (document.querySelector('.dialog')) key('Escape'); await wait(250); }
+            const B = window.__B, u = B.turn; if (!u) { out.push('no turn'); break; }
+            const before = [u.x, u.y];
+            key('Enter'); await wait(300);
+            for (const k of ['ArrowUp', 'ArrowUp', 'ArrowRight']) { key(k); await wait(80); }
+            key('Enter'); await wait(2500);
+            const others = B.units.filter((o) => o !== u && !o.gone && o.x === u.x && o.y === u.y);
+            out.push(`${before}->${u.x},${u.y}${others.length ? ' OVERLAP' : ''}`);
+            for (let k = 0; k < 6 && document.querySelector('.cmd .menu'); k++) { const wb = [...document.querySelectorAll('.cmd .menu button')].find((b) => b.textContent.includes('待機')); if (wb) { wb.click(); await wait(300); key('Enter'); await wait(300); break; } key('Escape'); await wait(200); }
+          }
+          await wait(2000);
+          const bad = window.__B.units.filter((a) => !a.gone && window.__B.units.some((b) => b !== a && !b.gone && b.x === a.x && b.y === a.y));
+          report('moves ' + out.join(' ; ') + ' overlaps ' + bad.length);
+        }
         else if (stage === 5) { clickText('出擊'); await wait(2500); report('battle ' + (document.querySelector('.goal') || {}).textContent); }
         else {
           clickText('出擊'); await wait(2500);

@@ -22,6 +22,7 @@ export async function runBattle(spec) {
   const resize = () => { const r = devicePixelRatio || 1; cv.width = innerWidth * Math.min(r, 2); cv.height = innerHeight * Math.min(r, 2); if (view.map) view.fit(); };
   addEventListener('resize', resize); resize();
   const B = createBattle(spec);
+  window.__B = B;
   view.setMap(B.map); view.units = B.units; view.treasure = B.treasure;
   view.showLoot = B.units.some((u) => u.side === 'ally' && u.s.flags.find);
   // the frame loop
@@ -63,13 +64,15 @@ export async function runBattle(spec) {
         case 'move': {
           const an = { pose: 'walk0' }; view.anim.set(u.id, an);
           if (e.path.length === 2 && Math.abs(e.path[0][0] - e.path[1][0]) + Math.abs(e.path[0][1] - e.path[1][1]) > 1) { await W(200); view.anim.delete(u.id); break; }
+          // walk the path one tile at a time, then stand exactly where the rules put the unit
+          const realX = u.x, realY = u.y;
           for (let i = 1; i < e.path.length; i++) {
             const [px, py] = e.path[i - 1], [nx, ny] = e.path[i], ft = tileAt(B, px, py), nt = tileAt(B, nx, ny);
-            const realX = u.x, realY = u.y; u.x = nx; u.y = ny;
+            u.x = nx; u.y = ny;
             an.from = [px, py, ft.h]; an.hop = Math.abs(nt.h - ft.h) > 0 ? 2 : 0; an.dir = dirOf(px, py, nx, ny);
             for (let k = 0; k <= 1; k += 0.25) { an.k = k; an.pose = k < 0.5 ? 'walk0' : 'walk1'; await W(30); }
-            if (i === e.path.length - 1) { u.x = realX; u.y = realY; }
           }
+          u.x = realX; u.y = realY;
           view.anim.delete(u.id); break;
         }
         case 'act': {

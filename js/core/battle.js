@@ -536,7 +536,8 @@ export function useItem(B, u, id, tx, ty) {
 // ---------------------------------------------------------------- winning and losing
 export function checkEnd(B) {
   if (B.over) return B.over;
-  const mine = B.units.filter((u) => u.side === 'ally' && !u.recruited), foes = B.units.filter((u) => u.side === 'foe' && !u.recruited);
+  // you lose when everyone on your side is down — your company and the story companions fighting with you
+  const mine = B.units.filter((u) => (u.side === 'ally' || u.side === 'guest') && !u.recruited), foes = B.units.filter((u) => u.side === 'foe' && !u.recruited);
   if (!mine.some(alive)) return (B.over = 'lose');
   if (B.goal.type === 'protect') { const g = B.units.find((u) => u.u.who === B.goal.who || u.u.uid === B.goal.uid); if (g && g.dead) return (B.over = 'lose'); }
   if (B.goal.type === 'boss') { const b = B.units.find((u) => u.boss); if (b && b.dead) return (B.over = 'win'); }
