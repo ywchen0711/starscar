@@ -13,16 +13,20 @@ const clickText = (t) => { const b = [...document.querySelectorAll('button')].fi
 const report = (m) => { document.title = m + ' | errs: ' + window.__errs.join(' || '); };
 try {
   await wait(800);
-  if (stage >= 8 && stage < 15) {
+  if ((stage >= 8 && stage < 15) || stage >= 18) {
     const st = await import('./js/state.js'), un = await import('./js/core/unit.js');
     const S = st.newGame('Ren'); S.ch = 2; S.node = 'saltreach'; S.gold = 20000; S.visited = ['aldmoor', 'greystone', 'saltreach', 'heronmoor'];
     for (const [j, who, n] of [['cleric', 'sylla', ['希兒', 'Sylla']], ['thief', 'rowena', ['洛溫娜', 'Rowena']], ['monk', 'bram', ['布倫', 'Bram']], ['corsair', 'marlow', ['瑪洛', 'Marlow']]]) { const u = un.makeUnit({ who, name: n, job: j, lv: 14 }); un.dressFoe(u, 3, Math.random); un.gainJp(u, 900, j); S.roster.push(u); }
     S.roster[0].lv = 15; un.gainJp(S.roster[0], 1200, 'sellsword');
     for (const id of ['sword4', 'sword5_keen', 'greatsword4', 'heavy4', 'helm4', 'shield4', 'boots_move', 'ring_atk', 'axe5', 'potion', 'hipotion']) st.bagAdd(id, 2);
+    const story = await import('./js/data/story.js'); for (const e of story.EVENTS) { if (e.id === 'c2_5') break; S.done[e.id] = true; }
     st.setS(S);
     window.__ss.world(); await wait(800);
+    if (stage >= 18 && stage <= 20) { clickText('記錄'); await wait(500); const tb = (t) => { const b = [...document.querySelectorAll('.tabs button')].find((x) => x.textContent.includes(t)); if (b) b.click(); }; if (stage === 19) tb('對話'); if (stage === 20) tb('人物'); await wait(400); report('journal ' + stage); }
     const tab = (t) => { const b = [...document.querySelectorAll('.tabs button')].find((x) => x.textContent.includes(t)); if (b) b.click(); };
-    if (stage === 8) { report('world2'); }
+    if (stage >= 18 && stage <= 20) { }
+    else if (stage === 21) { clickText('隊伍'); await wait(500); [...document.querySelectorAll('.item')].find((x) => x.textContent.includes('希兒')).click(); await wait(400); report('bio'); }
+    else if (stage === 8) { report('world2'); }
     else if (stage <= 12) {
       clickText('隊伍'); await wait(500);
       if (stage === 10) { tab('裝備'); await wait(300); const it = document.querySelector('.item'); [...document.querySelectorAll('.panel .item')].find((x) => x.textContent.includes('武器')).click(); await wait(500); }

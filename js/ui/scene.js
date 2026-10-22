@@ -7,9 +7,9 @@ import { makeUnit } from '../core/unit.js';
 import { S } from '../state.js';
 import { music } from '../audio.js';
 
-const fill = (s) => s.replace(/\{ren\}/g, S ? S.name : 'Ren');
-const castUnit = (who) => { const c = CAST[who]; if (!c) return null; if (c.mon) return { mon: c.mon }; return makeUnit({ job: c.job, look: c.look, sex: c.sex }); };
-const speakerName = (sp) => (sp === 'ren' ? (S ? S.name : 'Ren') : Array.isArray(sp) ? T(sp) : CAST[sp] && CAST[sp].name ? T(CAST[sp].name) : '');
+export const fill = (s) => s.replace(/\{ren\}/g, S ? S.name : 'Ren');
+export const castUnit = (who) => { const c = CAST[who]; if (!c) return null; if (c.mon) return { mon: c.mon }; return makeUnit({ job: c.job, look: c.look, sex: c.sex }); };
+export const speakerName = (sp) => (sp === 'ren' ? (S ? S.name : 'Ren') : Array.isArray(sp) ? T(sp) : CAST[sp] && CAST[sp].name ? T(CAST[sp].name) : '');
 
 // play a list of lines; tap or Enter to go on, Escape to skip the rest
 export function playLines(lines, { bg } = {}) {

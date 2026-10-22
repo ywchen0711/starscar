@@ -8,6 +8,7 @@ import { STATS, SLOTS, ELEMENTS, STATUS } from '../data/core.js';
 import { stats, canEquip, equip, changeJob, jpOf, jobLv, canLearn, learn, jobOpen, learnedIn } from '../core/unit.js';
 import { S, bagAdd, bagTake, save } from '../state.js';
 import { sfx } from '../audio.js';
+import { bioOf } from './journal.js';
 
 export const uname = (u) => (u.who === 'ren' ? S.name : typeof u.name === 'string' ? u.name : T(u.name));
 const pcanvas = (u, n = 36) => { const c = el('canvas', { width: n, height: n }); c.getContext('2d').drawImage(portrait(u, n), 0, 0); return c; };
@@ -49,7 +50,8 @@ export function partyScreen(onBack, start = 0) {
 }
 function statusTab(u) {
   const s = stats(u), rows = ['hp', 'mp', 'atk', 'def', 'mag', 'res', 'spd', 'mov', 'jmp', 'eva'];
-  const box = el('div', {}, el('div', { class: 'statgrid', style: { gridTemplateColumns: 'repeat(5, 1fr)', fontSize: '14px' } }, rows.map((k) => el('div', {}, el('b', {}, T(...STATS[k])), k === 'atk' && s.wpn ? `${s[k]}+${s.wpn}` : k === 'eva' ? `${s[k]}%` : s[k]))));
+  const bio = u.who && bioOf(u.who);
+  const box = el('div', {}, bio ? el('div', { class: 'panel', style: { marginBottom: '10px' } }, el('div', { class: 'small dim' }, bio.role), el('div', { class: 'small', style: { lineHeight: '1.7', marginTop: '4px' } }, bio.text), bio.more.map((m) => el('div', { class: 'small', style: { lineHeight: '1.7', marginTop: '4px', color: '#d8d0e8' } }, '▸ ' + m))) : null, el('div', { class: 'statgrid', style: { gridTemplateColumns: 'repeat(5, 1fr)', fontSize: '14px' } }, rows.map((k) => el('div', {}, el('b', {}, T(...STATS[k])), k === 'atk' && s.wpn ? `${s[k]}+${s.wpn}` : k === 'eva' ? `${s[k]}%` : s[k]))));
   if (u.mon) return box;
   const jobs = JOB_LIST.filter((j) => u.jp[j.id] && u.jp[j.id].total > 0);
   box.append(el('div', { class: 'title small', style: { marginTop: '12px' } }, T('職業等級', 'Job levels')), el('div', { class: 'row small' }, jobs.map((j) => el('span', { class: 'tag' }, `${T(j.name)} Lv${jobLevel(u.jp[j.id].total)} · ${u.jp[j.id].cur}JP`))));

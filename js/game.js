@@ -15,6 +15,7 @@ import { makeMap } from './core/mapgen.js';
 import { makeUnit, makeFoe, makeMonster, dressFoe, stats, jpOf, gainJp, HAIR, SKIN } from './core/unit.js';
 import { music, sfx, toggleMute, isMuted, unlock } from './audio.js';
 import { makeOne, castUnit, rollTreasure as roll, tierFor } from './core/build.js';
+import { journal, objective } from './ui/journal.js';
 import { seeded, pick, clamp, r0, hashStr, shuffle } from './util.js';
 
 const cv = document.getElementById('view');
@@ -86,8 +87,8 @@ function world() {
   let selected = S.node;
   const scr = el('div', { class: 'screen' });
   const chapter = CHAPTERS[Math.min(S.ch, CHAPTERS.length - 1)];
-  const top = el('div', { class: 'topbar' }, el('span', { class: 'title' }, T(chapter.title)), el('span', { class: 'sp' }), el('span', { class: 'gold' }, `${S.gold} G`),
-    el('button', { class: 'btn', onclick: () => go(() => partyScreen(world)) }, T('隊伍', 'Company')), el('button', { class: 'btn', onclick: () => go(() => bagScreen()) }, T('背包', 'Bag')),
+  const top = el('div', { class: 'topbar' }, el('span', { class: 'title' }, T(chapter.title)), el('span', { class: 'small', style: { color: '#ffe9a8', cursor: 'pointer' }, onclick: () => go(() => journal(world)) }, objective()), el('span', { class: 'sp' }), el('span', { class: 'gold' }, `${S.gold} G`),
+    el('button', { class: 'btn', onclick: () => go(() => partyScreen(world)) }, T('隊伍', 'Company')), el('button', { class: 'btn', onclick: () => go(() => journal(world)) }, T('記錄', 'Journal')), el('button', { class: 'btn', onclick: () => go(() => bagScreen()) }, T('背包', 'Bag')),
     el('button', { class: 'btn', onclick: () => { save(); toast(T('已存檔', 'Saved')); } }, T('存檔', 'Save')), el('button', { class: 'btn', onclick: () => go(() => title()) }, T('標題', 'Title')));
   const mapBox = el('div', { class: 'worldmap' }), info = el('div', { class: 'panel nodeinfo' });
   scr.append(top, mapBox); mapBox.append(info); ui.append(scr);
