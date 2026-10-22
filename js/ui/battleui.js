@@ -27,7 +27,7 @@ export async function runBattle(spec) {
   view.showLoot = B.units.some((u) => u.side === 'ally' && u.s.flags.find);
   // the frame loop
   let alive2 = true, last = performance.now();
-  const frame = (t) => { if (!alive2) return; try { view.draw(Math.min(0.05, (t - last) / 1000)); } catch (e) { reportError(e); view.fx = []; } last = t; requestAnimationFrame(frame); };
+  const frame = (t) => { if (!alive2) return; try { view.draw(Math.max(0, Math.min(0.05, (t - last) / 1000))); } catch (e) { reportError(e); view.fx = []; } last = t; requestAnimationFrame(frame); };
   requestAnimationFrame(frame);
   // HUD
   const hud = {
@@ -54,6 +54,7 @@ export async function runBattle(spec) {
   const showHover = (t) => { const u = t && unitAt(B, t[0], t[1]); if (u && u !== B.turn) { hud.hover.style.display = ''; fillCard(hud.hover, u); } else hud.hover.style.display = 'none'; };
   const offKeys = pushKeys((k) => { if (k === 'rotl') view.rotate(-1); else if (k === 'rotr') view.rotate(1); else if (keyTarget) keyTarget(k); });
   let keyTarget = null;
+  let lastAim = [0, 0];      // where the last aimed action went (items use it)
 
   // ---------------------------------------------------------------- playing events back
   let ev0 = 0;
@@ -147,6 +148,7 @@ export async function runBattle(spec) {
   }
   await play();
   // ---------------------------------------------------------------- the end
+  view.fx = []; view.marks.clear(); view.cursor = null; try { view.draw(0); } catch (e) { /* ignore */ }
   alive2 = false; offKeys(); removeEventListener('resize', resize);
   banner(B.over === 'win' ? T('勝利！', 'Victory!') : T('戰敗……', 'Defeat…'), B.over === 'win' ? '#ffe08a' : '#ff9a8a');
   sfx(B.over === 'win' ? 'win' : 'lose');
@@ -250,7 +252,6 @@ export async function runBattle(spec) {
       if (await aimAndDo(u, list[j].a)) return;
     }
   }
-  let lastAim = [0, 0];
   async function aimAndDo(u, a, doIt) {
     const tiles = targetTiles(B, u, a);
     let prev = null;
@@ -317,6 +318,7 @@ const GRID = [[1, 0], [0, 1], [-1, 0], [0, -1]];
 // show an error in the corner (and keep it for a bug report) instead of failing silently
 export function reportError(e) {
   console.error(e);
+  if (window.__errs) window.__errs.push(String((e && (e.stack || e.message)) || e).split(String.fromCharCode(10)).slice(0, 4).join(' | '));
   try { const box = document.getElementById('errbox') || document.body.appendChild(Object.assign(document.createElement('div'), { id: 'errbox' })); Object.assign(box.style, { position: 'fixed', left: '8px', bottom: '8px', maxWidth: '60vw', font: '12px monospace', color: '#ffb0a0', background: 'rgba(40,0,0,.85)', padding: '4px 8px', borderRadius: '4px', zIndex: 99, pointerEvents: 'none' }); box.textContent = '⚠ ' + String((e && (e.stack || e.message)) || e).split(String.fromCharCode(10)).slice(0, 3).join(' | '); setTimeout(() => box.remove(), 15000); } catch (e2) { /* ignore */ }
 }
 const clamp0 = (v, n) => Math.max(0, Math.min(n - 1, v));

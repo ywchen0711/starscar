@@ -120,9 +120,9 @@ export class IsoView {
         g.lineWidth = 4; g.strokeStyle = 'rgba(0,0,0,.8)'; g.strokeText(f.text, x, y); g.fillStyle = f.col; g.fillText(f.text, x, y); g.textAlign = 'left';
       } else if (f.k === 'ring') {
         const t = this.map.tiles[f.y * this.map.w + f.x]; if (!t) continue;
-        const [cx, cy] = this.sp(f.x, f.y, t.h), k = f.t / 0.7;
+        const [cx, cy] = this.sp(f.x, f.y, t.h), k = Math.max(0, f.t / 0.7);
         g.strokeStyle = f.col; g.globalAlpha = Math.max(0, 1 - k); g.lineWidth = 3;
-        g.beginPath(); g.ellipse(cx, cy - 10 * z, (12 + k * 30 * f.r) * z, (6 + k * 15 * f.r) * z, 0, 0, Math.PI * 2); g.stroke();
+        g.beginPath(); g.ellipse(cx, cy - 10 * z, Math.max(1, (12 + k * 30 * f.r) * z), Math.max(1, (6 + k * 15 * f.r) * z), 0, 0, Math.PI * 2); g.stroke();
         g.fillStyle = f.col; for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2 + f.t * 3; g.fillRect(cx + Math.cos(a) * 18 * z * (1 + k), cy - 10 * z - k * 40 * z + Math.sin(a) * 6 * z, 3 * z, 3 * z); }
         g.globalAlpha = 1; g.lineWidth = 1;
       } else if (f.k === 'line') {

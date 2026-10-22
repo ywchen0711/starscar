@@ -46,6 +46,34 @@ try {
       else {
         key('Escape'); await wait(500);
         if (stage === 4) report('formation');
+        else if (stage === 17) {
+          clickText('出擊'); await wait(2000);
+          const out = [];
+          for (let k = 0; k < 60 && !document.querySelector('.cmd .menu'); k++) { if (document.querySelector('.dialog')) key('Escape'); await wait(250); }
+          for (let turn = 0; turn < 3; turn++) {
+            for (let k = 0; k < 80 && !document.querySelector('.cmd .menu'); k++) { if (document.querySelector('.dialog')) key('Escape'); await wait(250); }
+            const B = window.__B, u = B.turn; if (!u) { out.push('no turn'); break; }
+            // stand next to a foe (from the side), then Act → Attack → confirm
+            const f = B.units.find((o) => o.side === 'foe' && !o.dead && !o.gone);
+            const spot = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => [f.x + dx, f.y + dy]).find(([x, y]) => { const t = B.map.tiles[y * B.map.w + x]; return t && !t.block && !t.obj && !B.units.some((o) => !o.gone && o.x === x && o.y === y) && Math.abs(t.h - B.map.tiles[f.y * B.map.w + f.x].h) <= 3; });
+            if (spot) { u.x = spot[0]; u.y = spot[1]; }
+            const act = [...document.querySelectorAll('.cmd .menu button')].find((b) => b.textContent.includes('行動')); act.click(); await wait(300);
+            const atk = [...document.querySelectorAll('.cmd .menu button')].find((b) => b.textContent.includes('攻擊')); atk.click(); await wait(400);
+            key('Enter'); await wait(3000);
+            out.push(`turn${turn} foeHP ${f.hp}/${f.s.hp} acted=${u.acted}`);
+            report('attack ' + out.join(' ; ')); if (window.__errs.length) break;
+            const wb = [...document.querySelectorAll('.cmd .menu button')].find((b) => b.textContent.includes('待機')); if (wb) { wb.click(); await wait(300); key('Enter'); await wait(500); }
+          }
+          report('attack ' + out.join(' ; '));
+        }
+        else if (stage === 16) {
+          const m = document.querySelector('.modal'); const had = !!m;
+          if (m) m.dispatchEvent(new MouseEvent('click', { bubbles: true })); await wait(400);
+          const still = !!document.querySelector('.modal');
+          clickText('返回'); await wait(800);
+          const ev = [...document.querySelectorAll('button')].find((b) => b.textContent.startsWith('▶')); if (ev) ev.click(); await wait(1200);
+          report(`formation=${had} afterOutsideClick=${still} reenter: dialog=${!!document.querySelector('.dialog')} formation=${!!document.querySelector('.modal')}`);
+        }
         else if (stage === 15) {
           clickText('出擊'); await wait(2500);
           const out = [];
