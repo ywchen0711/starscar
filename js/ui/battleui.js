@@ -11,6 +11,8 @@ import { MONSTERS } from '../data/monsters.js';
 import { createBattle, advance, beginTurn, endTurn, reachable, moveTo, targetTiles, areaOf, victims, calc, statusChance, perform, plan, canUse, mpCost, forecast, alive, sideOf, ATTACK, itemAction, useItem, checkEnd, live, tileAt, unitAt } from '../core/battle.js';
 import { jobLv } from '../core/unit.js';
 import { sfx, music } from '../audio.js';
+import { tacticEditor } from './party.js';
+import { sheet } from './dom.js';
 
 const nameOf = (u) => (typeof u.u.name === 'string' ? u.u.name : T(u.u.name));
 let FAST = false;
@@ -44,7 +46,15 @@ export async function runBattle(spec) {
     el('button', { class: 'btn', title: 'Q', onclick: () => view.rotate(-1) }, '⟲'), el('button', { class: 'btn', title: 'E', onclick: () => view.rotate(1) }, '⟳'),
     el('button', { class: 'btn', onclick: () => { view.zoomK = (view.zoomK || 1) >= 1.4 ? 0.8 : (view.zoomK || 1) + 0.3; view.fit(); } }, '🔍'),
     el('button', { class: 'btn', onclick: (e) => { FAST = !FAST; e.target.textContent = FAST ? '▶▶' : '▶'; } }, FAST ? '▶▶' : '▶'),
-    el('button', { class: 'btn' + (AUTO ? ' primary' : ''), id: 'autobtn', title: T('自動作戰', 'Auto-battle'), onclick: () => toggleAuto() }, T('自動', 'Auto')));
+    el('button', { class: 'btn' + (AUTO ? ' primary' : ''), id: 'autobtn', title: T('自動作戰', 'Auto-battle'), onclick: () => toggleAuto() }, T('自動', 'Auto')),
+    el('button', { class: 'btn', title: T('自動作戰方針', 'Auto-battle orders'), onclick: () => ordersSheet() }, T('方針', 'Orders')));
+  // set each unit's orders for auto-battle (who steals, who heals, who uses which skill)
+  function ordersSheet() {
+    const mine = B.units.filter((u) => u.side === 'ally' && !u.recruited);
+    const list = el('div', { class: 'list', style: { gap: '8px' } }, mine.map((u) => el('div', { class: 'item', style: { cursor: 'default', flexWrap: 'wrap' } }, el('div', { class: 'grow', style: { minWidth: '120px' } }, el('div', { class: 'nm' }, nameOf(u)), el('div', { class: 'small dim' }, u.u.mon ? '' : T(JOBS[u.u.job].name))), tacticEditor(u.u))));
+    const close = sheet(el('div', {}, el('div', { class: 'title' }, T('自動作戰方針', 'Auto-battle orders')), el('div', { class: 'small dim', style: { margin: '4px 0 10px' } }, T('開啟「自動」時，每個人會照自己的方針行動。設定會保留到之後的戰鬥。', 'With Auto on, each unit follows its own orders. They stay set for later battles.')), list,
+      el('div', { class: 'row', style: { justifyContent: 'flex-end', marginTop: '10px' } }, el('button', { class: 'btn primary', onclick: () => close() }, T('完成', 'Done')))));
+  }
   // turn auto-battle on or off; turning it on in the middle of your turn hands the rest of that turn to the AI
   function toggleAuto() {
     AUTO = !AUTO;

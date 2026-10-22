@@ -117,5 +117,22 @@ ok('tavern jobs run', qerr === 0, `${qerr} problems`);
   try { while (!B.over && turns < 900) { const r = advance(B); if (r.type !== 'turn') continue; const u = r.unit; turns++; if (!beginTurn(B, u)) { checkEnd(B); continue; } const p = plan(B, u); if (p.x !== u.x || p.y !== u.y) moveTo(B, u, p.x, p.y, p.path); if (p.a && alive(u) && !B.over) perform(B, u, p.a, p.tx, p.ty); if (B.turn === u) endTurn(B, u, u.dir); checkEnd(B); } } catch (e) { threw = e.message; }
   ok('Stop on everyone wears off and the battle goes on', !threw && !!B.over, threw || `${B.over} in ${turns} turns`);
 }
+// auto-battle orders: a thief told to steal goes for the enemy's gear
+{
+  const count = (mode) => {
+    let steals = 0;
+    for (let k = 0; k < 4; k++) {
+      const rnd = seeded(300 + k), map = makeMap({ theme: 'plains', seed: 300 + k }), units = [];
+      const thief = makeFoe('thief', 12, 3, rnd); thief.learned.push('stealgold', 'stealhead', 'stealbody', 'stealweapon', 'stealacc'); thief.tactic = { mode };
+      [thief, makeFoe('knight', 12, 3, rnd), makeFoe('cleric', 12, 3, rnd)].forEach((u, i) => units.push({ unit: u, side: 'ally', x: map.starts[i][0], y: map.starts[i][1], ai: true }));
+      map.foeStarts.slice(0, 3).forEach(([x, y]) => units.push({ unit: makeFoe('knight', 10, 3, rnd), side: 'foe', x, y }));
+      const B = createBattle({ map, units, rnd, tier: 3 });
+      for (let turns = 0; !B.over && turns < 400;) { const r = advance(B); if (r.type !== 'turn') continue; const u = r.unit; turns++; if (!beginTurn(B, u)) { checkEnd(B); continue; } const p = plan(B, u); if (p.x !== u.x || p.y !== u.y) moveTo(B, u, p.x, p.y, p.path); if (p.a && alive(u) && !B.over) { if (u.u === thief && p.a.steal) steals++; perform(B, u, p.a, p.tx, p.ty); } if (B.turn === u) endTurn(B, u, u.dir); checkEnd(B); }
+    }
+    return steals;
+  };
+  const withOrders = count('steal'), without = count('balance');
+  ok('a thief ordered to steal tries to steal', withOrders >= 6 && withOrders > without, `${withOrders} steal attempts with orders, ${without} without`);
+}
 console.log(fails ? `test: ${fails} FAILED` : 'test: all passed');
 process.exit(fails ? 1 : 0);

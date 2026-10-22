@@ -51,6 +51,13 @@ try {
       else {
         key('Escape'); await wait(500);
         if (stage === 4) report('formation');
+        else if (stage === 24) {
+          clickText('出擊'); await wait(1500);
+          for (let k = 0; k < 80 && !document.querySelector('.cmd .menu'); k++) { if (document.querySelector('.dialog')) key('Escape'); await wait(250); }
+          clickText('方針'); await wait(400);
+          const sel = document.querySelector('.modal select'); if (sel) { sel.value = 'skill'; sel.dispatchEvent(new Event('change')); } await wait(300);
+          report('orders sheet selects=' + document.querySelectorAll('.modal select').length);
+        }
         else if (stage === 23) {
           clickText('出擊'); await wait(1500);
           for (let k = 0; k < 80 && !document.querySelector('.cmd .menu'); k++) { if (document.querySelector('.dialog')) key('Escape'); await wait(250); }

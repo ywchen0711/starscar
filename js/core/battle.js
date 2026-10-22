@@ -562,6 +562,24 @@ export function stepsTo(B, u, goals) {
   return dist;
 }
 // look at every place it can stand and everything it can do from there; pick the best
+// orders for your units when they fight on their own (auto-battle): what each one should favour
+export const TACTICS = {
+  balance: ['均衡', 'Balanced'], attack: ['優先攻擊', 'Attack first'], heal: ['優先治療與支援', 'Heal and support'], steal: ['優先偷竊', 'Steal first'],
+  invite: ['優先招募', 'Recruit first'], skill: ['指定技能', 'Use a chosen skill'], basic: ['只用普通攻擊', 'Plain attacks only'], safe: ['保持距離', 'Keep safe'],
+};
+const helps = (a) => !!(a.h || a.rev || a.cure || a.mph || a.t === 'ally' || a.t === 'self');
+function byOrders(u, a, s) {
+  const t = u.side === 'ally' && u.u.tactic; if (!t || s <= 0) return s;
+  switch (t.mode) {
+    case 'attack': return a.d ? s * 1.5 : s * 0.4;
+    case 'heal': return helps(a) ? s * 2.5 + 10 : s * 0.6;
+    case 'steal': return a.steal ? s * 4 + 40 : s * 0.5;
+    case 'invite': return a.invite ? s * 4 + 40 : s * 0.5;
+    case 'skill': return a.id === t.skill ? s * 5 + 40 : s * 0.6;
+    case 'basic': return a.basic ? s : 0;
+    default: return s;
+  }
+}
 export function plan(B, u) {
   const moves = u.moved ? [{ x: u.x, y: u.y, path: [[u.x, u.y]] }] : [...reachable(B, u).values()];
   const acts = u.acted ? [] : [ATTACK, ...u.kit.acts].filter((a) => canUse(B, u, a) && !(u.st.berserk && !a.basic));
@@ -577,6 +595,7 @@ export function plan(B, u) {
     const near = foes.reduce((d, f) => Math.min(d, Math.abs(f.x - m.x) + Math.abs(f.y - m.y)), 99);
     const frail = u.s.def < u.s.mag && !u.u.mon;
     posScore += frail ? Math.min(near, 4) * 2 : -near * 0.5;
+    if (u.side === 'ally' && u.u.tactic && u.u.tactic.mode === 'safe') posScore += Math.min(near, 6) * 4;
     if (taunt) posScore -= (Math.abs(taunt.x - m.x) + Math.abs(taunt.y - m.y)) * 3;
     for (const a of acts) {
       const tiles = targetTiles(B, u, a);
@@ -584,7 +603,7 @@ export function plan(B, u) {
         // only aim where somebody is (or near somebody, for areas)
         if (!a.a && !unitAt(B, tx, ty)) continue;
         if (a.a && a.a !== 'all' && !B.units.some((o) => !o.gone && Math.abs(o.x - tx) + Math.abs(o.y - ty) <= (a.a === 'line' ? 6 : a.a))) continue;
-        const sc = scoreAction(B, u, a, tx, ty, foes, friends, fallen, taunt);
+        const sc = byOrders(u, a, scoreAction(B, u, a, tx, ty, foes, friends, fallen, taunt));
         if (sc <= 0) continue;
         const total = sc + posScore, off = victims(B, u, a, tx, ty).some((v) => sideOf(v) !== sideOf(u)) || (a.rev && true);
         if (total > best.score) best = { score: total, x: m.x, y: m.y, path: m.path, a, tx, ty, off };

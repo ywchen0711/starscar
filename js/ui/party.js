@@ -5,7 +5,8 @@ import { portrait } from './sprites.js';
 import { JOBS, JOB_LIST, ABILITIES, describe, jobLevel, JOB_LV, KIND_NAME } from '../data/jobs.js';
 import { ITEMS, CONSUMABLES } from '../data/items.js';
 import { STATS, SLOTS, ELEMENTS, STATUS } from '../data/core.js';
-import { stats, canEquip, equip, changeJob, jpOf, jobLv, canLearn, learn, jobOpen, learnedIn } from '../core/unit.js';
+import { stats, canEquip, equip, changeJob, jpOf, jobLv, canLearn, learn, jobOpen, learnedIn, battleKit } from '../core/unit.js';
+import { TACTICS } from '../core/battle.js';
 import { S, bagAdd, bagTake, save } from '../state.js';
 import { sfx } from '../audio.js';
 import { bioOf } from './journal.js';
@@ -29,6 +30,22 @@ export function gearLine(it) {
   return p.join(' ');
 }
 
+// ---------------------------------------------------------------- orders for auto-battle
+// a mode, and (for 'Use a chosen skill') which skill; kept on the unit for every battle after
+export function tacticEditor(u, onChange) {
+  const t = u.tactic || { mode: 'balance' };
+  const skills = u.mon ? [] : battleKit(u).acts;
+  const box = el('span', { class: 'row', style: { gap: '6px' } });
+  const mode = el('select', { class: 'btn', onchange: (e) => { u.tactic = { mode: e.target.value, skill: e.target.value === 'skill' ? (u.tactic && u.tactic.skill) || (skills[0] && skills[0].id) : null }; draw(); if (onChange) onChange(); } },
+    Object.entries(TACTICS).filter(([k]) => k !== 'skill' || skills.length).map(([k, n]) => el('option', { value: k, selected: k === t.mode || null }, T(n))));
+  const draw = () => {
+    while (box.firstChild) box.firstChild.remove();
+    box.append(mode);
+    if (u.tactic && u.tactic.mode === 'skill') box.append(el('select', { class: 'btn', onchange: (e) => { u.tactic.skill = e.target.value; if (onChange) onChange(); } }, skills.map((a) => el('option', { value: a.id, selected: a.id === u.tactic.skill || null }, T(a.name)))));
+  };
+  draw();
+  return box;
+}
 // ---------------------------------------------------------------- the party screen
 export function partyScreen(onBack, start = 0) {
   let sel = Math.min(start, S.roster.length - 1), tab = 'status';
@@ -57,6 +74,7 @@ function statusTab(u) {
   box.append(el('div', { class: 'title small', style: { marginTop: '12px' } }, T('職業等級', 'Job levels')), el('div', { class: 'row small' }, jobs.map((j) => el('span', { class: 'tag' }, `${T(j.name)} Lv${jobLevel(u.jp[j.id].total)} · ${u.jp[j.id].cur}JP`))));
   const set = [['sec', T('第二技能', 'Secondary')], ['react', T('反應', 'Reaction')], ['sup', T('輔助', 'Support')], ['move', T('移動', 'Movement')]];
   box.append(el('div', { class: 'title small', style: { marginTop: '12px' } }, T('設定中的能力', 'Set abilities')), el('div', { class: 'small' }, set.map(([k, l]) => el('div', {}, `${l}：`, u[k] ? (k === 'sec' ? T(...JOBS[u[k]].skill) : T(ABILITIES[u[k]].name)) : '—'))));
+  box.append(el('div', { class: 'title small', style: { marginTop: '12px' } }, T('自動作戰方針', 'Auto-battle orders')), el('div', { class: 'small dim', style: { marginBottom: '4px' } }, T('開啟自動作戰時，這個角色會照這個方針行動。', 'How this unit acts when auto-battle is on.')), tacticEditor(u));
   box.append(el('div', { class: 'small dim', style: { marginTop: '10px' } }, T(`擊倒數 ${u.kills || 0}`, `Foes felled: ${u.kills || 0}`)));
   return box;
 }
