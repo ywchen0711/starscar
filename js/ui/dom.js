@@ -53,17 +53,18 @@ export function modal(content, buttons = [], { wide = false } = {}) {
     if (buttons.length) p.append(row);
     m.append(p); $ui().append(m);
     const off = pushKeys((k) => { if (k === 'ok' && buttons.length) close(0); else if (k === 'back') close(buttons.length ? buttons.length - 1 : -1); });
-    m.addEventListener('click', (e) => { if (e.target === m) close(-1); });
+    // a stray tap outside does nothing: choose with the buttons (or Esc)
   });
 }
 // a pop-up you close yourself: returns close(); onBack runs on Escape or a click outside
-export function sheet(content, { onBack, wide = false } = {}) {
+// outside: whether a click outside the box closes it (off for boxes where a stray tap would lose your place)
+export function sheet(content, { onBack, wide = false, outside = true } = {}) {
   const m = el('div', { class: 'modal' }), p = el('div', { class: 'panel', style: wide ? { width: 'min(900px, 100%)' } : {} }, content);
   m.append(p); $ui().append(m);
   let open = true;
   const close = () => { if (!open) return; open = false; off(); m.remove(); };
   const off = pushKeys((k) => { if (k === 'back') { close(); if (onBack) onBack(); } });
-  m.addEventListener('click', (e) => { if (e.target === m) { close(); if (onBack) onBack(); } });
+  m.addEventListener('click', (e) => { if (e.target === m && outside) { close(); if (onBack) onBack(); } });
   return close;
 }
 export const bar = (v, max, col) => el('div', { class: 'bar' }, el('i', { style: { width: `${Math.max(0, Math.min(100, (v / Math.max(1, max)) * 100))}%`, background: col } }));

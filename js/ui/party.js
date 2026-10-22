@@ -164,6 +164,6 @@ export function formation(max, required = [], note) {
         el('button', { class: 'btn', onclick: () => { close(); partyScreen(() => resolve('again')); } }, T('整理隊伍', 'Manage company')),
         el('button', { class: 'btn', onclick: () => { close(); resolve(null); } }, T('返回', 'Back')),
         el('button', { class: 'btn primary', onclick: go }, T('出擊！', 'Deploy!'))));
-    const close = sheet(content, { onBack: () => resolve(null) });
+    const close = sheet(content, { onBack: () => resolve(null), outside: false });
   });
 }

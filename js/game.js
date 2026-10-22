@@ -71,7 +71,7 @@ function askName() {
   return new Promise((resolve) => {
     const inp = el('input', { value: T('雷恩', 'Ren'), maxlength: 10, style: { font: 'inherit', fontSize: '18px', padding: '6px 10px', background: '#1a1a2e', color: '#fff', border: '1px solid #6a5a3a', borderRadius: '4px', width: '100%' } });
     const close = sheet(el('div', {}, el('div', { class: 'title' }, T('主角的名字', 'Name your hero')), el('div', { class: 'small dim', style: { margin: '4px 0 8px' } }, T('一個沒有星紋的傭兵。', 'A sellsword without a star-mark.')), inp,
-      el('div', { class: 'row', style: { justifyContent: 'flex-end', marginTop: '10px' } }, el('button', { class: 'btn primary', onclick: () => done() }, T('決定', 'OK')))), { onBack: () => resolve(T('雷恩', 'Ren')) });
+      el('div', { class: 'row', style: { justifyContent: 'flex-end', marginTop: '10px' } }, el('button', { class: 'btn primary', onclick: () => done() }, T('決定', 'OK')))), { onBack: () => resolve(T('雷恩', 'Ren')), outside: false });
     const done = () => { close(); resolve((inp.value || '').trim().slice(0, 10) || T('雷恩', 'Ren')); };
     inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') done(); });
     setTimeout(() => { inp.focus(); inp.select(); }, 50);
@@ -319,7 +319,7 @@ function results(B, party, loot, recruits) {
       el('div', { class: 'list scroll', style: { maxHeight: '32vh', margin: '8px 0' } }, rows),
       el('div', { class: 'title small' }, T('戰利品', 'Spoils')), el('div', { class: 'small' }, `+${B.goldWon} G　`, Object.entries(counts).map(([id, n]) => el('span', { class: 'tag', style: { margin: '2px', color: ITEMS[id] && ITEMS[id].legend ? '#ffd040' : null } }, `${itemLabel(id)}${n > 1 ? ' ×' + n : ''}`))),
       recruits.length ? el('div', { class: 'small', style: { marginTop: '6px', color: '#7adf8a' } }, T('加入隊伍：', 'Joined: ') + recruits.map((u) => uname(u)).join(T('、', ', '))) : null);
-    const close = sheet(content, { onBack: () => resolve() });
+    const close = sheet(content, { onBack: () => resolve(), outside: false });
     content.append(el('div', { class: 'row', style: { justifyContent: 'flex-end', marginTop: '10px' } }, el('button', { class: 'btn primary', onclick: () => { close(); resolve(); } }, T('繼續', 'Continue'))));
   });
 }
@@ -331,7 +331,9 @@ async function playEvent(e) {
   if (chStart && e.ch > 0 && S.ch < e.ch) { S.ch = e.ch; await chapterCard(CHAPTERS[e.ch]); }
   backdrop(); music(e.music || (e.battle && e.battle.music === 'boss' ? 'boss' : 'sad'));
   clear();
-  await playLines(e.pre);
+  // the opening scene plays once; backing out of the deployment and coming back goes straight to it
+  S.seenPre = S.seenPre || {};
+  if (!S.seenPre[e.id]) { await playLines(e.pre); S.seenPre[e.id] = true; save(); }
   if (e.battle) {
     for (;;) {
       const b = e.battle, avg = avgLv();
