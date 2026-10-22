@@ -58,6 +58,18 @@ try {
           const sel = document.querySelector('.modal select'); if (sel) { sel.value = 'skill'; sel.dispatchEvent(new Event('change')); } await wait(300);
           report('orders sheet selects=' + document.querySelectorAll('.modal select').length);
         }
+        else if (stage === 26 || stage === 27) {
+          clickText('出擊'); await wait(1500);
+          for (let k = 0; k < 80 && !document.querySelector('.cmd .menu'); k++) { if (document.querySelector('.dialog')) key('Escape'); await wait(250); }
+          const B = window.__B, v = window.__view, f = B.units.find((o) => o.side === 'foe' && !o.gone);
+          const [sx, sy] = v.sp(f.x, f.y, B.map.tiles[f.y * B.map.w + f.x].h); const cv = document.querySelector('canvas'), r = cv.getBoundingClientRect();
+          cv.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: r.left + sx * r.width / cv.width, clientY: r.top + (sy - 4) * r.height / cv.height })); await wait(500);
+          const opened = !!document.querySelector('.modal.info');
+          if (stage === 27) { for (let i = 0; i < 4; i++) { key('ArrowRight'); await wait(150); } }
+          await wait(300);
+          const txt = (document.querySelector('.modal.info') || {}).textContent || '';
+          report(`info opened=${opened} foe=${f.u.job || f.u.mon} hasEquip=${txt.includes('裝備')} steal=${txt.includes('可偷')} len=${txt.length}`);
+        }
         else if (stage === 25) {
           clickText('出擊'); await wait(1500);
           for (let k = 0; k < 80 && !document.querySelector('.cmd .menu'); k++) { if (document.querySelector('.dialog')) key('Escape'); await wait(250); }

@@ -5,13 +5,14 @@ import { el, clear, $ui, menu, pushKeys, bar, wait } from './dom.js';
 import { IsoView, elColour } from './iso.js';
 import { portrait } from './sprites.js';
 import { JOBS, ABILITIES, describe } from '../data/jobs.js';
+import { ELEMENTS, SLOTS } from '../data/core.js';
 import { ITEMS, CONSUMABLES } from '../data/items.js';
 import { STATUS, STATS } from '../data/core.js';
-import { MONSTERS } from '../data/monsters.js';
+import { MONSTERS, MDROP } from '../data/monsters.js';
 import { createBattle, advance, beginTurn, endTurn, reachable, moveTo, targetTiles, areaOf, victims, calc, statusChance, perform, plan, canUse, mpCost, forecast, alive, sideOf, ATTACK, itemAction, useItem, checkEnd, live, tileAt, unitAt } from '../core/battle.js';
 import { jobLv } from '../core/unit.js';
 import { sfx, music } from '../audio.js';
-import { tacticEditor } from './party.js';
+import { tacticEditor, gearLine } from './party.js';
 import { sheet } from './dom.js';
 
 const nameOf = (u) => (typeof u.u.name === 'string' ? u.u.name : T(u.u.name));
@@ -73,12 +74,14 @@ export async function runBattle(spec) {
   const move = (e) => { const t = pt(e); hoverTile = t; if (onHover) onHover(t); else view.cursor = t; showHover(t); };
   let onHover = null;
   cv.addEventListener('mousemove', move);
-  cv.addEventListener('click', (e) => { if (dragged) { dragged = false; return; } const t = pt(e); if (t && onTile) onTile(t); else if (t) showHover(t); });
-  const showHover = (t) => { const u = t && unitAt(B, t[0], t[1]); if (u && u !== B.turn) { hud.hover.style.display = ''; fillCard(hud.hover, u); } else hud.hover.style.display = 'none'; };
+  cv.addEventListener('click', (e) => { if (dragged) { dragged = false; return; } const t = pt(e); if (t && onTile) onTile(t); else if (t) { const u = unitAt(B, t[0], t[1]); if (u) infoSheet(u); else showHover(t); } });
+  const showHover = (t) => { const u = t && unitAt(B, t[0], t[1]); if (u && u !== B.turn) { hud.hover.style.display = ''; fillCard(hud.hover, u); hud.hover.append(el('button', { class: 'btn small', style: { marginTop: '6px', width: '100%' }, onclick: () => infoSheet(u) }, T('詳細情報（I）', 'Details (I)'))); } else hud.hover.style.display = 'none'; };
   const offKeys = pushKeys((k) => { if (k !== 'rotl' && k !== 'rotr' && keyTarget) keyTarget(k); });
   // the camera answers at any moment, menu open or not: Q/E turn, +/- zoom
   const camKeys = (e) => { if (e.target && e.target.tagName === 'INPUT') return; const k = e.key; if (k === 'q' || k === 'Q') view.rotate(-1); else if (k === 'e' || k === 'E') view.rotate(1); else if (k === '+' || k === '=') view.zoomBy(1.2); else if (k === '-' || k === '_') view.zoomBy(1 / 1.2); };
   addEventListener('keydown', camKeys);
+  const infoKey = (e) => { if ((e.key !== 'i' && e.key !== 'I') || document.querySelector('.modal') || (e.target && e.target.tagName === 'INPUT')) return; const t = hoverTile || view.cursor; const u = (t && unitAt(B, t[0], t[1])) || B.turn; if (u) infoSheet(u); };
+  addEventListener('keydown', infoKey);
   // dragging: left drags the map, right (or Shift) drags turn and tilt it; two fingers pinch to zoom and twist to turn
   const ptrs = new Map(); let dragged = false, last2 = null;
   cv.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -198,7 +201,7 @@ export async function runBattle(spec) {
   await play();
   // ---------------------------------------------------------------- the end
   view.fx = []; view.marks.clear(); view.cursor = null; try { view.draw(0); } catch (e) { /* ignore */ }
-  alive2 = false; offKeys(); removeEventListener('resize', resize); removeEventListener('keydown', camKeys);
+  alive2 = false; offKeys(); removeEventListener('resize', resize); removeEventListener('keydown', camKeys); removeEventListener('keydown', infoKey);
   banner(B.over === 'win' ? T('勝利！', 'Victory!') : T('戰敗……', 'Defeat…'), B.over === 'win' ? '#ffe08a' : '#ff9a8a');
   sfx(B.over === 'win' ? 'win' : 'lose');
   await wait(1400);
@@ -337,9 +340,27 @@ export async function runBattle(spec) {
     if (i < 0) { if (cur >= 0) u.dir = items[cur].d; return null; }
     return items[i].d;
   }
-  async function statusModal(u) {
-    const { modal } = await import('./dom.js');
-    await modal(unitDetail(u), [T('關閉', 'Close')]);
+  function statusModal(u) { return infoSheet(u); }
+  // a full sheet on any unit, friend or foe: ◀ ▶ (or ←/→) walk through everyone on the field
+  function infoSheet(u0) {
+    return new Promise((resolve) => {
+      if (document.querySelector('.modal.info')) return resolve();
+      const order = { ally: 0, guest: 1, foe: 2 };
+      const list = () => B.units.filter((o) => !o.gone).sort((a, b) => (order[a.side] ?? 3) - (order[b.side] ?? 3));
+      let u = u0;
+      const m = el('div', { class: 'modal info' }), p = el('div', { class: 'panel', style: { width: 'min(720px, 100%)', maxHeight: '88vh', overflowY: 'auto' } });
+      const step = (d) => { const L = list(); if (!L.length) return; const i = L.indexOf(u); u = L[((i < 0 ? 0 : i) + d + L.length) % L.length]; view.cursor = [u.x, u.y]; draw(); sfx('ok'); };
+      const draw = () => {
+        const L = list();
+        clear(p).append(unitDetail(u), el('div', { class: 'row', style: { justifyContent: 'space-between', marginTop: '12px' } },
+          el('div', { class: 'row' }, el('button', { class: 'btn', onclick: () => step(-1) }, '◀'), el('span', { class: 'small dim', style: { alignSelf: 'center' } }, `${L.indexOf(u) + 1} / ${L.length}`), el('button', { class: 'btn', onclick: () => step(1) }, '▶')),
+          el('button', { class: 'btn primary', onclick: close }, T('關閉', 'Close'))));
+      };
+      const close = () => { off(); m.remove(); resolve(); };
+      const off = pushKeys((k) => { if (k === 'left' || k === 'up') step(-1); else if (k === 'right' || k === 'down') step(1); else if (k === 'back' || k === 'ok') close(); });
+      m.addEventListener('click', (e) => { if (e.target === m) close(); });
+      m.append(p); ui.append(m); draw();
+    });
   }
   function fillCard(box, u) {
     const c = portrait(u.u, 52), cnv = el('canvas', { width: 52, height: 52 }); cnv.getContext('2d').drawImage(c, 0, 0);
@@ -353,16 +374,57 @@ export async function runBattle(spec) {
     );
   }
   function unitDetail(u) {
-    const s = u.s, rows = [['atk', Math.round(live(u, 'atk')) + (s.wpn ? `+${s.wpn}` : '')], ['def', Math.round(live(u, 'def'))], ['mag', Math.round(live(u, 'mag'))], ['res', Math.round(live(u, 'res'))], ['spd', live(u, 'spd').toFixed(1)], ['mov', s.mov], ['jmp', s.jmp], ['eva', s.eva + '%']];
-    const eq = u.u.mon ? [] : Object.entries(u.u.eq).filter(([, id]) => id).map(([, id]) => el('div', { class: 'small' }, itemName(id)));
-    const acts = u.kit.acts.map((a) => T(a.name)).join(T('、', ', '));
-    return el('div', {}, el('div', { class: 'title' }, `${nameOf(u)}　Lv ${u.u.lv}`),
-      el('div', { class: 'statgrid' }, rows.map(([k, v]) => el('div', {}, el('b', {}, T(...STATS[k])), v))),
-      eq.length ? el('div', { style: { marginTop: '8px' } }, el('div', { class: 'title small' }, T('裝備', 'Equipment')), eq) : null,
-      el('div', { style: { marginTop: '8px' } }, el('div', { class: 'title small' }, T('技能', 'Abilities')), el('div', { class: 'small' }, acts || '—')),
-      u.kit.react ? el('div', { class: 'small dim', style: { marginTop: '4px' } }, T('反應：', 'Reaction: ') + T(u.kit.react.name)) : null,
-      u.u.mon ? el('div', { class: 'small dim', style: { marginTop: '4px' } }, T('弱點：', 'Weak to: ') + (MONSTERS[u.u.mon].weak.join(', ') || '—')) : null);
+    const s = u.s, mon = u.u.mon && MONSTERS[u.u.mon];
+    const sideTag = u.side === 'foe' ? [T('敵軍', 'Enemy'), '#ff7a6a'] : u.side === 'guest' ? [T('友軍', 'Guest'), '#6ad07a'] : [T('我軍', 'Ally'), '#6aa8ff'];
+    const sec = (title, ...body) => el('div', { style: { marginTop: '12px' } }, el('div', { class: 'title small', style: { borderBottom: '1px solid var(--line)', paddingBottom: '2px', marginBottom: '4px' } }, title), ...body);
+    const elems = (set) => [...(set || [])].map((e) => el('span', { class: 'tag', style: { color: (ELEMENTS[e] || [])[2], borderColor: (ELEMENTS[e] || [])[2] } }, ELEMENTS[e] ? T(...ELEMENTS[e].slice(0, 2)) : e));
+    const pc = portrait(u.u, 64), cnv = el('canvas', { width: 64, height: 64, style: { width: '64px', height: '64px', imageRendering: 'pixelated', border: '1px solid var(--line)', borderRadius: '4px' } }); cnv.getContext('2d').drawImage(pc, 0, 0);
+    const job = mon ? T(mon.name) : T(JOBS[u.u.job].name);
+    // facing as an arrow on screen, so it stays true however the camera is turned
+    const faceArrow = () => { const g = GRID[u.dir]; if (!g) return '—'; const [x0, y0] = view.project(u.x + .5, u.y + .5, 0), [x1, y1] = view.project(u.x + .5 + g[0], u.y + .5 + g[1], 0); return '→↘↓↙←↖↑↗'[((Math.round(Math.atan2(y1 - y0, x1 - x0) / (Math.PI / 4)) % 8) + 8) % 8]; };
+    const sts = Object.keys(u.st).filter((k) => STATUS[k]).map((k) => el('span', { class: 'tag', style: { color: STATUS[k].col, borderColor: STATUS[k].col } }, T(STATUS[k].name) + (u.st[k] < 90 ? ` ${Math.ceil(u.st[k])}` : '')));
+    const head = el('div', { class: 'row', style: { gap: '12px', alignItems: 'center' } }, cnv,
+      el('div', { style: { flex: 1, minWidth: 0 } },
+        el('div', { class: 'row', style: { gap: '6px', alignItems: 'center' } }, el('span', { class: 'title', style: { fontSize: '20px' } }, nameOf(u)), el('span', { class: 'tag', style: { color: sideTag[1], borderColor: sideTag[1] } }, sideTag[0]), u.boss ? el('span', { class: 'tag', style: { color: '#ffd040', borderColor: '#ffd040' } }, T('首領', 'Boss')) : null, u.dead ? el('span', { class: 'tag' }, T('倒下', 'Down')) : null),
+        el('div', { class: 'small dim' }, `${job} · Lv ${u.u.lv}${mon ? '' : ` · ${T('職業', 'Job')} Lv ${jobLv(u.u)}`}${u.u.sec && JOBS[u.u.sec] ? ` · ${T('副', 'Sub')}：${T(JOBS[u.u.sec].name)}` : ''} · ${T('面向', 'Facing')} ${faceArrow()} · ${T('位置', 'At')} ${u.x},${u.y}`),
+        el('div', { class: 'row small', style: { marginTop: '4px', gap: '12px' } }, el('span', {}, `HP ${u.hp}/${s.hp}`), el('span', {}, `MP ${u.mp}/${s.mp}`), el('span', { class: 'dim' }, `CT ${Math.max(0, Math.floor(u.ct))}`)),
+        bar(u.hp, s.hp, u.hp / s.hp > 0.5 ? '#5ad06a' : u.hp / s.hp > 0.25 ? '#e0c040' : '#e05a4a'), el('div', { style: { height: '3px' } }), bar(u.mp, s.mp || 1, '#4a8aff'),
+        sts.length ? el('div', { class: 'row', style: { marginTop: '5px', gap: '4px' } }, sts) : null));
+    const rows = [['atk', Math.round(live(u, 'atk'))], ['wpn', s.wpn], ['def', Math.round(live(u, 'def'))], ['mag', Math.round(live(u, 'mag'))], ['res', Math.round(live(u, 'res'))], ['spd', live(u, 'spd').toFixed(1)], ['mov', s.mov], ['jmp', s.jmp], ['eva', s.eva + '%']];
+    const lbl = (k) => (k === 'wpn' ? T('武器威力', 'Weapon') : T(...STATS[k]));
+    const stats = el('div', { class: 'statgrid', style: { gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', fontSize: '13.5px' } }, rows.map(([k, v]) => el('div', {}, el('b', {}, lbl(k)), v)));
+    // gear: what each piece does, and whether a thief could lift it
+    const lock = (id) => ITEMS[id] && ITEMS[id].legend && (u.named || u.boss);
+    const gear = mon ? el('div', { class: 'small dim' }, T('魔物沒有裝備。', 'Monsters wear no gear.'))
+      : el('div', { class: 'list', style: { gap: '4px' } }, ['w', 's', 'h', 'b', 'a'].map((k) => { const id = u.u.eq[k], it = id && ITEMS[id];
+        return el('div', { class: 'row small', style: { gap: '8px', alignItems: 'flex-start' } }, el('span', { class: 'tag', style: { minWidth: '44px', textAlign: 'center' } }, T(...SLOTS[k])),
+          el('div', { style: { flex: 1, minWidth: 0 } }, el('div', {}, it ? T(it.name) : '—', it && it.tier ? el('span', { class: 'dim' }, ` ★${it.tier}`) : null), it ? el('div', { class: 'dim' }, gearLine(it)) : null),
+          u.side === 'foe' && it ? el('span', { class: 'tag', style: lock(id) ? {} : { color: '#ffd070', borderColor: '#ffd070' } }, lock(id) ? T('無法偷取', 'Unstealable') : T('可偷', 'Stealable')) : null); }));
+    const res = [[T('弱點', 'Weak'), s.weak], [T('抗性', 'Resist'), s.resist], [T('吸收', 'Absorb'), s.absorb], [T('免疫', 'Immune'), s.immune]].filter(([, v]) => v && v.size);
+    const elemBox = res.length ? el('div', { class: 'small', style: { display: 'grid', gap: '4px' } }, res.map(([l, v]) => el('div', { class: 'row', style: { gap: '4px', alignItems: 'center' } }, el('span', { class: 'dim', style: { minWidth: '40px' } }, l), ...elems(v)))) : el('div', { class: 'small dim' }, T('沒有特別的屬性弱點或抗性。', 'No elemental weakness or resistance.'));
+    const atkEl = s.el && ELEMENTS[s.el] ? el('div', { class: 'small', style: { marginTop: '4px' } }, T('攻擊屬性：', 'Attack element: '), ...elems([s.el])) : null;
+    const auto = s.auto && s.auto.size ? el('div', { class: 'small', style: { marginTop: '4px' } }, T('常駐狀態：', 'Always: ') + [...s.auto].map((k) => (STATUS[k] ? T(STATUS[k].name) : k)).join(T('、', ', '))) : null;
+    // abilities, each with what it does
+    const acts = u.kit.acts.length ? el('div', { class: 'list', style: { gap: '3px' } }, u.kit.acts.map((a) => el('div', { class: 'small' }, el('span', { style: { color: 'var(--gold2)' } }, T(a.name)), el('span', { class: 'dim' }, '　' + describe(a).join(' · '))))) : el('div', { class: 'small dim' }, '—');
+    const set = mon ? [] : [['react', T('反應', 'Reaction')], ['sup', T('輔助', 'Support')], ['move', T('移動', 'Movement')]].filter(([k]) => u.u[k] && ABILITIES[u.u[k]]).map(([k, l]) => el('div', { class: 'small' }, el('span', { class: 'dim' }, `${l}：`), T(ABILITIES[u.u[k]].name), el('span', { class: 'dim' }, '　' + describe(ABILITIES[u.u[k]]).join(' · '))));
+    if (mon && u.kit.react) set.push(el('div', { class: 'small' }, el('span', { class: 'dim' }, T('反應：', 'Reaction: ')), T(u.kit.react.name)));
+    // what a thief or a kill might bring
+    const loot = [];
+    if (u.side === 'foe') {
+      if (mon) { loot.push(T('偷竊：', 'Steal: ') + itemName(MDROP[mon.fam] || 'potion')); loot.push(T('掉落：', 'Drops: ') + itemName(MDROP[mon.fam] || 'potion') + T('（45%）、隨機裝備（18%）', ' (45%), random gear (18%)')); }
+      else { const worn = Object.values(u.u.eq).filter((id) => id && !lock(id)); loot.push(T('偷竊：身上的裝備（見上）', 'Steal: any worn gear (above)')); loot.push(T('掉落：', 'Drops: ') + (worn.length ? T('身上一件裝備（30%）', 'one worn piece (30%)') : '—') + T('、藥品（20%）', ', a potion (20%)')); }
+      if (u.u.drops && u.u.drops.length) loot.push(T('必定掉落：', 'Always drops: ') + u.u.drops.map(itemName).join(T('、', ', ')));
+      if (u.boss || u.named) loot.push(T('無法招降 · 偷竊成功率減半', 'Cannot be recruited · steal chance halved'));
+    }
+    return el('div', {}, head,
+      sec(T('能力值', 'Stats'), stats),
+      sec(T('裝備', 'Equipment'), gear),
+      sec(T('屬性', 'Elements'), elemBox, atkEl, auto),
+      sec(T('技能', 'Abilities'), acts, set.length ? el('div', { style: { marginTop: '6px' } }, set) : null),
+      loot.length ? sec(T('戰利品', 'Spoils'), el('div', { class: 'small' }, loot.map((l) => el('div', {}, l)))) : null,
+      mon ? el('div', { class: 'small dim', style: { marginTop: '8px' } }, [mon.fly ? T('飛行', 'Flying') : '', mon.undead ? T('不死', 'Undead') : ''].filter(Boolean).join(' · ')) : null);
   }
+
 }
 // screen arrows: right = down-right, down = down-left, left = up-left, up = up-right (before turning the camera)
 const GRID = [[1, 0], [0, 1], [-1, 0], [0, -1]];
