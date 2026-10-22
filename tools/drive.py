@@ -13,7 +13,7 @@ const clickText = (t) => { const b = [...document.querySelectorAll('button')].fi
 const report = (m) => { document.title = m + ' | errs: ' + window.__errs.join(' || '); };
 try {
   await wait(800);
-  if ((stage >= 8 && stage < 15) || stage >= 18) {
+  if ((stage >= 8 && stage < 15) || (stage >= 18 && stage <= 22)) {
     const st = await import('./js/state.js'), un = await import('./js/core/unit.js');
     const S = st.newGame('Ren'); S.ch = 2; S.node = 'saltreach'; S.gold = 20000; S.visited = ['aldmoor', 'greystone', 'saltreach', 'heronmoor'];
     for (const [j, who, n] of [['cleric', 'sylla', ['希兒', 'Sylla']], ['thief', 'rowena', ['洛溫娜', 'Rowena']], ['monk', 'bram', ['布倫', 'Bram']], ['corsair', 'marlow', ['瑪洛', 'Marlow']]]) { const u = un.makeUnit({ who, name: n, job: j, lv: 14 }); un.dressFoe(u, 3, Math.random); un.gainJp(u, 900, j); S.roster.push(u); }
@@ -51,6 +51,14 @@ try {
       else {
         key('Escape'); await wait(500);
         if (stage === 4) report('formation');
+        else if (stage === 23) {
+          clickText('出擊'); await wait(1500);
+          for (let k = 0; k < 80 && !document.querySelector('.cmd .menu'); k++) { if (document.querySelector('.dialog')) key('Escape'); await wait(250); }
+          const hadMenu = !!document.querySelector('.cmd .menu');
+          document.getElementById('autobtn').click(); await wait(25000);
+          const B = window.__B, L = Object.values(B.expLog)[0] || {};
+          report(`auto: menu=${hadMenu} over=${B.over} turns=${B.turnCount} heroExp=${L.exp || 0} menuNow=${!!document.querySelector('.cmd .menu')}`);
+        }
         else if (stage === 17) {
           clickText('出擊'); await wait(2000);
           const out = [];

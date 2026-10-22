@@ -14,6 +14,8 @@ import { sfx, music } from '../audio.js';
 
 const nameOf = (u) => (typeof u.u.name === 'string' ? u.u.name : T(u.u.name));
 let FAST = false;
+// auto-battle: your units think for themselves (kept between battles until you turn it off)
+let AUTO = false;
 const W = (ms) => wait(FAST ? ms * 0.35 : ms);
 
 export async function runBattle(spec) {
@@ -41,8 +43,18 @@ export async function runBattle(spec) {
   const cam = el('div', { class: 'cambtns' },
     el('button', { class: 'btn', title: 'Q', onclick: () => view.rotate(-1) }, '⟲'), el('button', { class: 'btn', title: 'E', onclick: () => view.rotate(1) }, '⟳'),
     el('button', { class: 'btn', onclick: () => { view.zoomK = (view.zoomK || 1) >= 1.4 ? 0.8 : (view.zoomK || 1) + 0.3; view.fit(); } }, '🔍'),
-    el('button', { class: 'btn', onclick: (e) => { FAST = !FAST; e.target.textContent = FAST ? '▶▶' : '▶'; } }, FAST ? '▶▶' : '▶'));
-  ui.append(hud.goal, hud.turns, hud.card, hud.hover, hud.cmd, cam, hud.help);
+    el('button', { class: 'btn', onclick: (e) => { FAST = !FAST; e.target.textContent = FAST ? '▶▶' : '▶'; } }, FAST ? '▶▶' : '▶'),
+    el('button', { class: 'btn' + (AUTO ? ' primary' : ''), id: 'autobtn', title: T('自動作戰', 'Auto-battle'), onclick: () => toggleAuto() }, T('自動', 'Auto')));
+  // turn auto-battle on or off; turning it on in the middle of your turn hands the rest of that turn to the AI
+  function toggleAuto() {
+    AUTO = !AUTO;
+    const b = document.getElementById('autobtn'); if (b) b.classList.toggle('primary', AUTO);
+    autoTag.style.display = AUTO ? '' : 'none';
+    banner(AUTO ? T('自動作戰：開', 'Auto-battle: on') : T('自動作戰：關', 'Auto-battle: off'), AUTO ? '#7adf8a' : '#ffe9a8');
+    if (AUTO) { if (keyTarget) keyTarget('back'); for (const m of document.querySelectorAll('.cmd .menu')) if (m.close) m.close(); }
+  }
+  const autoTag = el('div', { class: 'panel', style: { position: 'absolute', left: '50%', top: '52px', transform: 'translateX(-50%)', padding: '2px 12px', fontSize: '13px', color: '#7adf8a', display: AUTO ? '' : 'none', pointerEvents: 'none' } }, T('🤖 自動作戰中', '🤖 Auto-battle'));
+  ui.append(hud.goal, hud.turns, hud.card, hud.hover, hud.cmd, cam, hud.help, autoTag);
   const refreshTurns = () => { clear(hud.turns).append(el('div', { class: 'title small' }, T('行動順序', 'Turn order')), ...forecast(B, 9).map((u) => el('div', { class: 't' }, el('i', { style: { background: u.side === 'foe' ? '#ff6a5a' : u.side === 'guest' ? '#7adf8a' : '#6aa0ff' } }), nameOf(u)))); };
   // pointer: hover shows a unit's card; clicks go to whoever is listening
   let onTile = null, hoverTile = null;
@@ -137,7 +149,8 @@ export async function runBattle(spec) {
       if (!beginTurn(B, u)) { await play(); checkEnd(B); continue; }
       await play();
       if (B.over) break;
-      if (u.ai || u.st.berserk || u.st.charm) await aiTurn(u); else await playerTurn(u);
+      if (u.ai || u.st.berserk || u.st.charm || AUTO) await aiTurn(u);
+      else if ((await playerTurn(u)) === 'auto' && alive(u) && B.turn === u) { clear(hud.cmd); clearMarks(); await aiTurn(u); }
       checkEnd(B); await play();
       if (spec.onTurn) await spec.onTurn(B);
     } catch (e) {
@@ -180,6 +193,7 @@ export async function runBattle(spec) {
     sfx('turn');
     for (;;) {
       if (B.over) return;
+      if (AUTO) return 'auto';
       fillCard(hud.card, u); clearMarks();
       const items = [
         { label: T('移動', 'Move'), disabled: u.moved },
@@ -230,6 +244,7 @@ export async function runBattle(spec) {
   }
   async function chooseAct(u) {
     for (;;) {
+      if (AUTO) return;
       const kit = u.kit, sets = kit.sets, bagItems = Object.keys(B.bag).filter((k) => CONSUMABLES[k] && B.bag[k] > 0);
       const items = [{ label: T('攻擊', 'Attack'), v: 'attack' }, ...sets.map(([j, list]) => ({ label: T(...JOBS[j].skill), v: j, disabled: !list.length })), { label: T('道具', 'Items'), v: 'item', disabled: !bagItems.length }];
       const i = await menu(clear(hud.cmd), items, { title: T('行動', 'Act') });
