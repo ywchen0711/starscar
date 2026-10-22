@@ -4,7 +4,7 @@ import { el, clear, $ui, menu, modal, toast, pushKeys, wait, sheet } from './ui/
 import { runBattle } from './ui/battleui.js';
 import { playLines, chapterCard, rollEnding } from './ui/scene.js';
 import { partyScreen, formation, uname, itemLabel, gearLine } from './ui/party.js';
-import { portrait } from './ui/sprites.js';
+import { portrait, person, SPR_W, SPR_H } from './ui/sprites.js';
 import { S, setS, save, load, newGame, initCloud, bagAdd, bagTake, flag, setFlag } from './state.js';
 import { EVENTS, EVENT, CHAPTERS, CAST, ENDING, nextEvent, RECRUIT_NAMES } from './data/story.js';
 import { NODES, LINKS, OPEN_BY_CH, LABYRINTHS, QUESTS } from './data/world.js';
@@ -94,6 +94,8 @@ function world() {
   scr.append(top, mapBox); mapBox.append(info); ui.append(scr);
   const g = cv.getContext('2d');
   let alive = true, t = 0, landCache = null;
+  // walking along a road: { a, b, k (0-1), route (the places still ahead) }; dust left behind
+  let walk = null, dust = [], flash = 0;
   const go = (fn) => { alive = false; off(); fn(); };
   const off = pushKeys((k) => { if (k === 'back') go(() => partyScreen(world)); });
   // layout: the 1000 × 700 world scaled into the map area
@@ -128,14 +130,38 @@ function world() {
       if (next && next.at === id) { g.fillStyle = '#ff5a4a'; g.font = 'bold 22px sans-serif'; g.fillText('!', x, y - r - 8 + Math.sin(t * 5) * 3); }
       g.textAlign = 'left';
     }
-    // the company's banner
-    const [px, py] = P(NODES[S.node]);
-    g.fillStyle = '#5a3a1a'; g.fillRect(px + 10, py - 34, 3, 30); g.fillStyle = '#3a5aa0'; g.beginPath(); g.moveTo(px + 13, py - 34); g.lineTo(px + 33, py - 28 + Math.sin(t * 3) * 2); g.lineTo(px + 13, py - 20); g.fill(); g.strokeStyle = '#d8e8ff'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(px + 16, py - 31); g.lineTo(px + 26, py - 25); g.stroke();
+    // the road still ahead glows while walking
+    if (walk && walk.route.length) {
+      g.strokeStyle = `rgba(255,230,140,${0.55 + Math.sin(t * 6) * 0.25})`; g.lineWidth = 4; g.setLineDash([10, 8]); g.lineDashOffset = -t * 40;
+      g.beginPath(); const [sx, sy] = here(); g.moveTo(sx, sy); for (const id of walk.route) { const [rx, ry] = P(NODES[id]); g.lineTo(rx, ry); } g.stroke(); g.setLineDash([]);
+    }
+    // the company: the hero walking, the banner beside, dust behind
+    const [px, py] = here(), moving = !!walk;
+    if (moving && Math.random() < 0.5) dust.push({ x: px + (Math.random() - 0.5) * 8, y: py + 2, t: 0 });
+    for (const d of dust) { d.t += 0.016; g.fillStyle = `rgba(220,200,160,${Math.max(0, 0.5 - d.t)})`; g.beginPath(); g.arc(d.x, d.y - d.t * 10, 3 + d.t * 8, 0, Math.PI * 2); g.fill(); }
+    dust = dust.filter((d) => d.t < 0.5);
+    const hero = S.roster.find((u) => u.who === 'ren') || S.roster[0];
+    const dx = walk ? P(NODES[walk.b])[0] - P(NODES[walk.a])[0] : 1, dy = walk ? P(NODES[walk.b])[1] - P(NODES[walk.a])[1] : 1;
+    const back = moving && dy < -Math.abs(dx) * 0.6, flip = dx > 0;
+    const pose = moving ? (Math.floor(t * 8) % 2 ? 'walk0' : 'walk1') : (Math.floor(t * 2) % 2 ? 'idle0' : 'idle1');
+    const img = person(hero, back, pose), sc = 2.2, w = SPR_W * sc, h = SPR_H * sc, hop = moving ? Math.abs(Math.sin(t * 16)) * 3 : 0;
+    g.fillStyle = 'rgba(0,0,0,.35)'; g.beginPath(); g.ellipse(px, py + 1, 12, 4, 0, 0, Math.PI * 2); g.fill();
+    g.save(); g.imageSmoothingEnabled = false; g.translate(px, py - hop); if (flip) g.scale(-1, 1); g.drawImage(img, -w / 2, -h + 4, w, h); g.restore();
+    const fx = px + (flip ? -16 : 16), fy = py - hop;
+    g.fillStyle = '#5a3a1a'; g.fillRect(fx - 1, fy - 52, 3, 46); g.fillStyle = '#3a5aa0'; g.beginPath(); g.moveTo(fx + 2, fy - 52); g.lineTo(fx + 24, fy - 46 + Math.sin(t * (moving ? 9 : 3)) * 3); g.lineTo(fx + 2, fy - 38); g.fill(); g.strokeStyle = '#d8e8ff'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(fx + 5, fy - 49); g.lineTo(fx + 16, fy - 43); g.stroke();
+    // an ambush: the screen flashes red
+    if (flash > 0) { flash = Math.max(0, flash - 0.016); g.fillStyle = `rgba(200,30,30,${flash * 0.9})`; g.fillRect(0, 0, cv.width, cv.height); }
     requestAnimationFrame(draw);
   };
+  // where the company stands right now (between two places while walking)
+  function here() {
+    if (!walk) return P(NODES[S.node]);
+    const [ax, ay] = P(NODES[walk.a]), [bx, by] = P(NODES[walk.b]), k = walk.k, e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+    return [ax + (bx - ax) * e, ay + (by - ay) * e];
+  }
   draw();
   const pickNode = (e) => { let best = null, bd = 30; for (const [id, n] of Object.entries(NODES)) { if (!open.has(id)) continue; const [x, y] = P(n), d = Math.hypot(e.clientX - x, e.clientY - y); if (d < bd) { bd = d; best = id; } } return best; };
-  mapBox.addEventListener('click', (e) => { if (e.target !== mapBox) return; const id = pickNode(e); if (id) { selected = id; showInfo(); } });
+  mapBox.addEventListener('click', (e) => { if (e.target !== mapBox || walk) return; const id = pickNode(e); if (id) { selected = id; showInfo(); } });
   function showInfo() {
     const n = NODES[selected], here = selected === S.node;
     const acts = [];
@@ -154,18 +180,29 @@ function world() {
       el('div', { class: 'row', style: { marginTop: '8px' } }, acts));
   }
   showInfo();
+  window.__travel = (id) => travel(id);
   // walk the roads one place at a time; wild places may jump you on the way
   async function travel(dest) {
     const prev = new Map([[S.node, null]]), q = [S.node];
     while (q.length) { const c = q.shift(); for (const nb of neighbours(c)) if (open.has(nb) && !prev.has(nb)) { prev.set(nb, c); q.push(nb); } }
     if (!prev.has(dest)) return toast(T('還去不了那裡。', 'You can\'t get there yet.'));
     const path = []; for (let c = dest; c; c = prev.get(c)) path.unshift(c);
+    clear(info).append(el('div', { class: 'title' }, T(`前往 ${T(NODES[dest].name)}…`, `Travelling to ${T(NODES[dest].name)}…`)));
     for (let i = 1; i < path.length; i++) {
+      // walk the road: longer roads take a little longer
+      const [ax, ay] = P(NODES[path[i - 1]]), [bx, by] = P(NODES[path[i]]), ms = Math.max(380, Math.min(950, Math.hypot(bx - ax, by - ay) * 4));
+      walk = { a: path[i - 1], b: path[i], k: 0, route: path.slice(i) };
+      const t0 = performance.now();
+      while (walk.k < 1) { await wait(16); if (!alive) return; walk.k = Math.min(1, (performance.now() - t0) / ms); }
       S.node = path[i]; S.visited = [...new Set([...(S.visited || []), S.node])]; sfx('turn');
-      await wait(220);
+      walk = path[i + 1] ? { a: path[i], b: path[i + 1], k: 0, route: path.slice(i + 1) } : null;
       const n = NODES[S.node];
-      if (i < path.length - 1 && n.kind === 'field' && Math.random() < 0.22) { save(); return go(() => patrol(S.node, true)); }
+      if (i < path.length - 1 && n.kind === 'field' && Math.random() < 0.22) {
+        walk = null; flash = 0.8; sfx('hurt'); save(); await wait(700);
+        return go(() => patrol(S.node, true));
+      }
     }
+    walk = null;
     save(); selected = S.node; showInfo();
   }
 }
@@ -384,7 +421,7 @@ async function ending() {
 // ---------------------------------------------------------------- skirmishes and tavern jobs
 async function patrol(id, ambush = false) {
   const n = NODES[id], lv = Math.max(n.lv || 1, Math.round(avgLv() - 1)), rnd = Math.random, count = 4 + Math.floor(rnd() * 3);
-  backdrop();
+  backdrop(); clear();
   if (ambush) await modal(el('div', {}, T(`在${T(n.name)}遭遇了敵人！`, `Ambushed in ${T(n.name)}!`)), [T('迎戰', 'Fight')]);
   const foes = []; for (let i = 0; i < count; i++) foes.push({ k: pick(n.foes, rnd), n: 1, lv: Math.floor(rnd() * 3) - 1 });
   const B = await fight({ theme: n.theme, lv, foes, seed: Math.floor(rnd() * 1e6), treasures: 1 + Math.floor(rnd() * 3), max: 5, required: [] });

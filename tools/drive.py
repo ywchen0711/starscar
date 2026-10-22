@@ -25,6 +25,7 @@ try {
     if (stage >= 18 && stage <= 20) { clickText('記錄'); await wait(500); const tb = (t) => { const b = [...document.querySelectorAll('.tabs button')].find((x) => x.textContent.includes(t)); if (b) b.click(); }; if (stage === 19) tb('對話'); if (stage === 20) tb('人物'); await wait(400); report('journal ' + stage); }
     const tab = (t) => { const b = [...document.querySelectorAll('.tabs button')].find((x) => x.textContent.includes(t)); if (b) b.click(); };
     if (stage >= 18 && stage <= 20) { }
+    else if (stage === 22) { window.__noAmbush = 1; window.__travel('greystone'); await wait(+(new URLSearchParams(location.search).get('ms') || 700)); report('travel at ' + window.__ss.S.node); }
     else if (stage === 21) { clickText('隊伍'); await wait(500); [...document.querySelectorAll('.item')].find((x) => x.textContent.includes('希兒')).click(); await wait(400); report('bio'); }
     else if (stage === 8) { report('world2'); }
     else if (stage <= 12) {
