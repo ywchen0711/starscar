@@ -166,8 +166,11 @@ function skillTab(u, redraw) {
 // ---------------------------------------------------------------- who goes into battle
 export function formation(max, required = [], note) {
   return new Promise((resolve) => {
+    // required units first, then whoever went into the last battle (S.lastParty); with no last battle, the roster's first
     const chosen = new Set(S.roster.filter((u) => required.includes(u.who)).map((u) => u.uid));
-    for (const u of S.roster) { if (chosen.size >= Math.min(max, S.roster.length)) break; chosen.add(u.uid); }
+    const last = (S.lastParty || []).filter((id) => S.roster.some((u) => u.uid === id));
+    if (last.length) { for (const id of last) { if (chosen.size >= max) break; chosen.add(id); } }
+    else for (const u of S.roster) { if (chosen.size >= Math.min(max, S.roster.length)) break; chosen.add(u.uid); }
     const list = el('div', { class: 'list scroll', style: { maxHeight: '55vh' } });
     const count = el('span', { class: 'gold' });
     const draw = () => {
@@ -178,7 +181,7 @@ export function formation(max, required = [], note) {
       count.textContent = `${chosen.size}/${max}`;
     };
     draw();
-    const go = () => { close(); resolve(chosen.size ? S.roster.filter((u) => chosen.has(u.uid)) : null); };
+    const go = () => { if (chosen.size) S.lastParty = S.roster.filter((u) => chosen.has(u.uid)).map((u) => u.uid); close(); resolve(chosen.size ? S.roster.filter((u) => chosen.has(u.uid)) : null); };
     const content = el('div', {}, el('div', { class: 'row' }, el('div', { class: 'title' }, T('出擊隊伍', 'Deployment')), el('span', { style: { flex: 1 } }), count), note ? el('div', { class: 'small dim' }, note) : null, list,
       el('div', { class: 'row', style: { marginTop: '10px', justifyContent: 'flex-end' } },
         el('button', { class: 'btn', onclick: () => { close(); partyScreen(() => resolve('again')); } }, T('整理隊伍', 'Manage company')),
