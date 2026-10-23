@@ -1,4 +1,5 @@
 // The game: title, the world map, towns, the story, battles and the hidden labyrinths.
+import { sprite as deco, rnd as drnd } from './ui/deco.js';
 import { T, EN, LANG, setLang } from './i18n.js';
 import { el, clear, $ui, menu, modal, toast, pushKeys, wait, sheet } from './ui/dom.js';
 import { runBattle } from './ui/battleui.js';
@@ -37,7 +38,7 @@ function backdrop() {
   const loop = () => {
     if (!bgOn) return;
     cv.width = innerWidth; cv.height = innerHeight; t += 0.016;
-    const gr = g.createLinearGradient(0, 0, 0, cv.height); gr.addColorStop(0, '#0a0b1a'); gr.addColorStop(1, '#22234a'); g.fillStyle = gr; g.fillRect(0, 0, cv.width, cv.height);
+    const gr = g.createLinearGradient(0, 0, 0, cv.height); gr.addColorStop(0, '#2f6e88'); gr.addColorStop(1, '#7c8c44'); g.fillStyle = gr; g.fillRect(0, 0, cv.width, cv.height);
     for (let i = 0; i < 120; i++) { const x = (i * 137.5 + t * 4) % cv.width, y = (i * 59.3) % (cv.height * 0.8); g.fillStyle = `rgba(255,255,240,${0.3 + 0.5 * Math.abs(Math.sin(t + i))})`; g.fillRect(x, y, 2, 2); }
     // the scar in the sky
     g.strokeStyle = 'rgba(140,200,255,.25)'; g.lineWidth = 3; g.beginPath(); g.moveTo(cv.width * 0.62, 0); g.quadraticCurveTo(cv.width * 0.55, cv.height * 0.3, cv.width * 0.4, cv.height * 0.55); g.stroke();
@@ -104,7 +105,7 @@ function world() {
   const draw = () => {
     if (!alive) return;
     t += 0.016; cv.width = innerWidth; cv.height = innerHeight;
-    g.fillStyle = '#10223a'; g.fillRect(0, 0, cv.width, cv.height);
+    g.fillStyle = '#2f6e88'; g.fillRect(0, 0, cv.width, cv.height);
     // the land, drawn once per size: blurred patches of each place's ground, then fog over places not yet reached
     const b = box(), s = Math.min(b.w / 1040, b.h / 740);
     if (!landCache || landCache.w !== cv.width || landCache.h !== cv.height || landCache.n !== open.size) landCache = paintLand(P, s, open);
@@ -113,8 +114,8 @@ function world() {
     for (const [a, c] of LINKS) {
       const A = NODES[a], C = NODES[c]; if (!open.has(a) && !open.has(c)) continue;
       const [x1, y1] = P(A), [x2, y2] = P(C), both = open.has(a) && open.has(c);
-      g.strokeStyle = both ? 'rgba(240,220,160,.85)' : 'rgba(240,220,160,.25)'; g.lineWidth = 3; g.setLineDash(both ? [] : [6, 6]);
-      g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); g.setLineDash([]);
+      g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.strokeStyle = both ? 'rgba(62,42,22,.6)' : 'rgba(62,42,22,.25)'; g.lineWidth = 6; g.stroke();
+      g.strokeStyle = both ? '#d8b878' : 'rgba(216,184,120,.4)'; g.lineWidth = 3; g.setLineDash([7, 4]); g.stroke(); g.setLineDash([]);
     }
     // places
     for (const [id, n] of Object.entries(NODES)) {
@@ -122,11 +123,12 @@ function world() {
       const [x, y] = P(n), r = 9 + (n.kind === 'town' ? 3 : 0);
       g.fillStyle = n.kind === 'town' ? '#e8c46a' : n.kind === 'hidden' ? '#c080ff' : n.kind === 'site' ? '#8ad8ff' : '#7adf8a';
       g.strokeStyle = '#000'; g.lineWidth = 2;
-      if (n.kind === 'town') { g.fillRect(x - r, y - r, r * 2, r * 2); g.strokeRect(x - r, y - r, r * 2, r * 2); }
+      g.strokeStyle = '#2e1e12'; g.lineWidth = 3;
+      if (n.kind === 'town') { const o = deco('citytown', 0, '#3a5aa0'), k = 1.4; g.drawImage(o.c, Math.round(x - o.ax * k), Math.round(y + 8 - o.ay * k), o.w * k, o.h * k); }
       else if (n.kind === 'hidden') { g.beginPath(); for (let k = 0; k < 10; k++) { const a = k * Math.PI / 5 - Math.PI / 2, rr = k % 2 ? r * 0.5 : r * 1.3; g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } g.closePath(); g.fill(); g.stroke(); }
       else { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); g.stroke(); }
       if (id === selected) { g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.arc(x, y, r + 6 + Math.sin(t * 4) * 2, 0, Math.PI * 2); g.stroke(); }
-      g.font = `bold ${Math.max(11, 13 * s * 1.2)}px "DotGothic16", sans-serif`; g.textAlign = 'center'; g.fillStyle = '#000'; g.fillText(T(n.name), x + 1, y + r + 15); g.fillStyle = '#f4ecd8'; g.fillText(T(n.name), x, y + r + 14);
+      g.font = `900 ${Math.max(12, 13 * s * 1.25)}px "Noto Sans TC", sans-serif`; g.textAlign = 'center'; g.lineJoin = 'round'; g.lineWidth = 4; g.strokeStyle = '#2e1e12'; g.strokeText(T(n.name), x, y + r + 16); g.fillStyle = '#ffffff'; g.fillText(T(n.name), x, y + r + 16);
       if (next && next.at === id) { g.fillStyle = '#ff5a4a'; g.font = 'bold 22px sans-serif'; g.fillText('!', x, y - r - 8 + Math.sin(t * 5) * 3); }
       g.textAlign = 'left';
     }
@@ -207,16 +209,23 @@ function world() {
   }
 }
 
-const BIOME = { desert: '#b89a5a', snow: '#c8d4e8', swamp: '#4a5a3a', crystal: '#5a6aa8', sky: '#8a9ad0', volcano: '#7a3a22', mine: '#7a6a5a', ruins: '#6a6a50', church: '#8a8a7a', forest: '#2f5a2f', cave: '#5a5048', bridge: '#4a6a3a', castle: '#6a7050' };
+const BIOME = { desert: '#cdb47a', snow: '#dfe6ee', swamp: '#5a7050', crystal: '#8a9ac8', sky: '#a8b8e0', volcano: '#8a5a3a', mine: '#8e8270', ruins: '#8a8a60', church: '#a8a088', forest: '#5e7a36', cave: '#7e7262', bridge: '#7c8c44', castle: '#86904e' };
 function paintLand(P, s, open) {
   const c = document.createElement('canvas'); c.width = cv.width; c.height = cv.height; const g = c.getContext('2d');
-  g.fillStyle = '#12284a'; g.fillRect(0, 0, c.width, c.height);
+  g.fillStyle = '#2f6e88'; g.fillRect(0, 0, c.width, c.height);
   // waves
-  g.strokeStyle = 'rgba(120,170,220,.08)'; for (let y = 10; y < c.height; y += 18) { g.beginPath(); for (let x = 0; x < c.width; x += 12) g.lineTo(x, y + Math.sin(x * 0.03 + y) * 3); g.stroke(); }
+  g.strokeStyle = 'rgba(200,240,250,.18)'; for (let y = 10; y < c.height; y += 18) { g.beginPath(); for (let x = 0; x < c.width; x += 12) g.lineTo(x, y + Math.sin(x * 0.03 + y) * 3); g.stroke(); }
   g.filter = 'blur(14px)';
-  for (const n of Object.values(NODES)) { const [x, y] = P(n); g.fillStyle = '#3e5a32'; g.beginPath(); g.arc(x, y, 120 * s, 0, Math.PI * 2); g.fill(); }
-  for (const n of Object.values(NODES)) { const [x, y] = P(n); g.fillStyle = BIOME[n.theme] || (n.kind === 'town' ? '#5a7a42' : '#4e7038'); g.beginPath(); g.arc(x, y, 70 * s, 0, Math.PI * 2); g.fill(); }
+  for (const n of Object.values(NODES)) { const [x, y] = P(n); g.fillStyle = '#d8c08a'; g.beginPath(); g.arc(x, y, 128 * s, 0, Math.PI * 2); g.fill(); }
+  for (const n of Object.values(NODES)) { const [x, y] = P(n); g.fillStyle = '#7c8c44'; g.beginPath(); g.arc(x, y, 120 * s, 0, Math.PI * 2); g.fill(); }
+  for (const n of Object.values(NODES)) { const [x, y] = P(n); g.fillStyle = BIOME[n.theme] || (n.kind === 'town' ? '#8e9450' : '#7c8c44'); g.beginPath(); g.arc(x, y, 70 * s, 0, Math.PI * 2); g.fill(); }
   g.filter = 'none';
+  // pixel speckle over the land, then trees around the green places and peaks around the high ones
+  { const r = drnd(4242), px = Math.max(2, Math.round(3 * s)); for (let i = 0; i < 7000; i++) { const x = Math.floor(r() * c.width / px) * px, y = Math.floor(r() * c.height / px) * px, d = g.getImageData(x, y, 1, 1).data; if (d[2] > d[1]) continue; g.fillStyle = r() < 0.5 ? 'rgba(40,30,10,.12)' : 'rgba(255,250,200,.10)'; g.fillRect(x, y, px, px); } }
+  { const r = drnd(777), things = [];
+    for (const n of Object.values(NODES)) { const [x, y] = P(n), high = ['snow', 'crystal', 'volcano', 'ruins', 'mine', 'cave'].includes(n.theme);
+      for (let k = 0; k < (high ? 4 : 7); k++) { const a = r() * Math.PI * 2, d = (45 + r() * 50) * s, tx = x + Math.cos(a) * d, ty = y + Math.sin(a) * d * 0.8; things.push({ y: ty, kind: high ? 'peak' : n.theme === 'snow' ? 'snowpine' : n.theme === 'desert' ? 'rock' : r() < 0.35 ? 'pine' : 'tree', x: tx, v: Math.floor(r() * 3) }); } }
+    for (const t of things.sort((a, b) => a.y - b.y)) { const o = deco(t.kind, t.v), k = Math.max(1, s * (t.kind === 'peak' ? 1.6 : 1.8)); g.drawImage(o.c, Math.round(t.x - o.ax * k), Math.round(t.y - o.ay * k), Math.round(o.w * k), Math.round(o.h * k)); } }
   // a coastline glow and a little texture
   for (let i = 0; i < 900; i++) { const x = (i * 97.3) % c.width, y = (i * 53.7 + (i % 7) * 31) % c.height; g.fillStyle = 'rgba(0,0,0,.06)'; g.fillRect(x, y, 2, 2); }
   // mountains near the high places

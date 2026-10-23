@@ -1,6 +1,7 @@
 // The battle map seen from above at an angle: raised columns of ground, the units standing on them,
 // coloured overlays for moving and aiming, and the little effects (numbers, flashes, spell rings).
 import { TERRAIN, ELEMENTS, STATUS } from '../data/core.js';
+import { groundTex, sprite as deco, tileHash, rnd as drnd } from './deco.js';
 import { person, monster, SPR_W, SPR_H, SPR_SCALE, MON_W, MON_H } from './sprites.js';
 import { MONSTERS } from '../data/monsters.js';
 
@@ -73,7 +74,7 @@ export class IsoView {
     const g = this.g, W = this.cv.width, H = this.cv.height, map = this.map;
     if (!map) return;
     this.fit();
-    const sky = map.dark ? ['#0a0a14', '#1a1626'] : map.theme === 'sky' || map.theme === 'void' ? ['#1a2a5a', '#6a7ac8'] : ['#1a2238', '#3a4a6a'];
+    const sky = map.dark ? ['#0a0a14', '#1a1626'] : map.theme === 'sky' || map.theme === 'void' ? ['#1a2a5a', '#6a7ac8'] : ['#2c2418', '#3e3222'];
     const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, sky[0]); gr.addColorStop(1, sky[1]); g.fillStyle = gr; g.fillRect(0, 0, W, H);
     // a soft light behind the field and darker corners, so the map sits in a spotlight
     const glow = g.createRadialGradient(W / 2, H * 0.55, 0, W / 2, H * 0.55, Math.max(W, H) * 0.6); glow.addColorStop(0, 'rgba(255,240,210,.10)'); glow.addColorStop(1, 'rgba(255,240,210,0)'); g.fillStyle = glow; g.fillRect(0, 0, W, H);
@@ -94,6 +95,11 @@ export class IsoView {
   corners(t, h, k = 1) {
     const i = (1 - k) / 2;
     return [[t.x + i, t.y + i], [t.x + 1 - i, t.y + i], [t.x + 1 - i, t.y + 1 - i], [t.x + i, t.y + 1 - i]].map(([x, y]) => this.project(x, y, h));
+  }
+  pattern(col, kind, variant) {
+    this.pats = this.pats || new Map(); const key = col + kind + variant;
+    if (!this.pats.has(key)) this.pats.set(key, this.g.createPattern(groundTex(col, kind, variant), 'repeat'));
+    return this.pats.get(key);
   }
   drawTile(t) {
     const g = this.g, z = this.zoom, T = TERRAIN[t.t] || TERRAIN.grass, map = this.map;
@@ -118,19 +124,35 @@ export class IsoView {
     if (!water && !lava) top = shade(top, Math.min(0.22, t.h * 0.03) - 0.04);
     const poly = (pts) => { g.beginPath(); g.moveTo(...pts[0]); for (let i = 1; i < pts.length; i++) g.lineTo(...pts[i]); g.closePath(); };
     g.fillStyle = top; poly(top4); g.fill();
+    // a pixel texture over the top (not on moving water or lava), lit by height
+    if (!water && !lava) {
+      const pat = this.pattern(T.top, t.t, (t.x + t.y) % 2);
+      pat.setTransform(new DOMMatrix().scale(z * 1.5));
+      g.fillStyle = pat; poly(top4); g.fill();
+      const lift = Math.min(0.22, t.h * 0.03) - 0.04; if (lift) { g.fillStyle = lift > 0 ? `rgba(255,240,200,${lift})` : `rgba(0,0,0,${-lift})`; poly(top4); g.fill(); }
+    } else if (water) { g.fillStyle = 'rgba(220,240,255,.35)'; for (let i = 0; i < 2; i++) { const ph = (this.time * 0.6 + i * 0.5 + (t.x + t.y) * 0.13) % 1; const [px, py] = this.project(t.x + 0.2 + ph * 0.6, t.y + 0.3 + i * 0.35, t.h); g.fillRect(px, py, 5 * z, 1.5 * z); } }
     // a light rim on the far edges and a dark one on the near edges
     g.lineWidth = 1;
-    for (const [a, b, nx, ny] of edges) { const f = nx * s + ny * c; g.strokeStyle = f > 0.01 ? 'rgba(0,0,0,.28)' : 'rgba(255,255,255,.15)'; g.beginPath(); g.moveTo(...top4[a]); g.lineTo(...top4[b]); g.stroke(); }
+    for (const [a, b, nx, ny] of edges) { const f = nx * s + ny * c; g.strokeStyle = f > 0.01 ? 'rgba(46,30,18,.55)' : 'rgba(255,240,200,.18)'; g.beginPath(); g.moveTo(...top4[a]); g.lineTo(...top4[b]); g.stroke(); }
     const [cx, cy] = this.sp(t.x, t.y, t.h);
-    if (!water && !lava && (t.x * 7 + t.y * 3) % 4 === 0) { g.fillStyle = shade(T.top, -0.08); for (let i = 0; i < 2; i++) { const [px, py] = this.project(t.x + 0.2 + ((t.x * 13 + t.y * 7 + i * 5) % 10) / 16, t.y + 0.2 + ((t.x * 3 + t.y * 11 + i * 7) % 10) / 16, t.h); g.fillRect(px, py, 2 * z, 2 * z); } }
+    // little things on natural ground: tufts, flowers, pebbles (they always face the camera)
+    if (!water && !lava && !t.obj && ['grass', 'dirt', 'moss', 'sand', 'snow', 'swamp'].includes(t.t)) {
+      const r = drnd(tileHash(t.x, t.y)), n = t.t === 'grass' || t.t === 'moss' ? 3 : 1;
+      for (let i = 0; i < n; i++) { const roll = r(); const kind = t.t === 'snow' || t.t === 'sand' || t.t === 'dirt' ? (roll < 0.4 ? 'pebble' : null) : roll < 0.55 ? 'tuft' : roll < 0.7 ? 'flower' : roll < 0.8 ? 'pebble' : null; const u = 0.2 + r() * 0.6, v = 0.2 + r() * 0.6; if (!kind) continue; const o = deco(kind, Math.floor(r() * 3)), [px, py] = this.project(t.x + u, t.y + v, t.h), k2 = z * 1.6; g.drawImage(o.c, px - o.ax * k2, py - o.ay * k2, o.w * k2, o.h * k2); }
+    }
     // overlays
     const m = this.marks.get(`${t.x},${t.y}`);
     if (m) { g.fillStyle = m; poly(this.corners(t, t.h, 0.82)); g.fill(); g.strokeStyle = m.replace(/[\d.]+\)$/, '0.95)'); g.lineWidth = 1.5; g.stroke(); }
     if (this.cursor && this.cursor[0] === t.x && this.cursor[1] === t.y) { g.strokeStyle = '#fff'; g.lineWidth = 2.5; poly(top4); g.stroke(); g.lineWidth = 1; }
     if (this.showLoot && this.treasure.some((q) => q.x === t.x && q.y === t.y && !q.taken)) { const k = (Math.sin(this.time * 5 + t.x) + 1) / 2; g.fillStyle = `rgba(255,230,120,${0.4 + k * 0.6})`; g.beginPath(); g.arc(cx, cy, (3 + k * 3) * z, 0, Math.PI * 2); g.fill(); }
     // things standing on the tile
-    if (t.obj === 'tree') { g.fillStyle = '#5a3a1a'; g.fillRect(cx - 3 * z, cy - 18 * z, 6 * z, 18 * z); g.fillStyle = '#2f6a2f'; g.beginPath(); g.arc(cx, cy - 26 * z, 15 * z, 0, Math.PI * 2); g.fill(); g.fillStyle = '#3f8a3f'; g.beginPath(); g.arc(cx - 4 * z, cy - 30 * z, 9 * z, 0, Math.PI * 2); g.fill(); }
-    else if (t.obj === 'rock') { g.fillStyle = '#7a7a80'; g.beginPath(); g.ellipse(cx, cy - 6 * z, 14 * z, 10 * z, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#9a9aa0'; g.beginPath(); g.ellipse(cx - 3 * z, cy - 9 * z, 7 * z, 5 * z, 0, 0, Math.PI * 2); g.fill(); }
+    if (t.obj === 'tree' || t.obj === 'rock') {
+      // pixel trees (a small grove) and boulders, standing on the tile
+      const r = drnd(tileHash(t.x, t.y) + 5), k2 = z * 2.2;
+      const items = t.obj === 'tree' ? [[r() < 0.3 ? 'pine' : 'tree', 0, 0]] : [['rock', 0, 0], ['rock', 0.18, 0.16]];
+      if (t.obj === 'tree' && r() < 0.5) items.unshift([r() < 0.5 ? 'pine' : 'tree', -0.2, -0.18]);
+      for (const [kind, du, dv] of items) { const o = deco(kind, Math.floor(r() * 3)), [px, py] = this.project(t.x + 0.5 + du, t.y + 0.5 + dv, t.h), kk = kind === 'rock' ? k2 * 1.15 : k2; g.drawImage(o.c, px - o.ax * kk, py - o.ay * kk, o.w * kk, o.h * kk); }
+    }
     else if (t.obj === 'pillar') { g.fillStyle = '#d8d4e0'; g.fillRect(cx - 7 * z, cy - 46 * z, 14 * z, 46 * z); g.fillStyle = '#a8a4b8'; g.fillRect(cx + 2 * z, cy - 46 * z, 5 * z, 46 * z); g.fillStyle = '#f0ecf8'; g.fillRect(cx - 9 * z, cy - 50 * z, 18 * z, 5 * z); }
   }
 

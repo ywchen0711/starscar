@@ -160,6 +160,6 @@ export function portrait(u, size = 64) {
   const c = mk(size, size), g = c.getContext('2d'); g.imageSmoothingEnabled = false;
   g.fillStyle = '#1a1830'; g.fillRect(0, 0, size, size);
   if (u.mon) g.drawImage(monster(u.mon, false), 0, 0, MON_W, MON_H, 0, 0, size, size);
-  else g.drawImage(person(u, false), 7, 0, 18, 18, 0, 2, size, size);
+  else g.drawImage(person(u, false), 6, 4, 20, 20, 0, 0, size, size);
   cache.set(key, c); return c;
 }

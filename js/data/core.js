@@ -61,14 +61,14 @@ export const ARMOURS = {
 
 // terrain on battle maps: colours for the top and the sides, whether you can stand on it, what it costs to cross
 export const TERRAIN = {
-  grass: { name: ['草地', 'Grass'], top: '#5aa04a', side: '#6a4a2a', el: 'wind' }, dirt: { name: ['泥土', 'Dirt'], top: '#a07848', side: '#6a4a2a', el: 'earth' },
-  stone: { name: ['石地', 'Stone'], top: '#9a9a9a', side: '#6a6a72', el: 'earth' }, sand: { name: ['沙地', 'Sand'], top: '#e0c888', side: '#b09060', el: 'wind', cost: 2 },
-  snow: { name: ['雪地', 'Snow'], top: '#eef4ff', side: '#9aa8c0', el: 'ice', cost: 2 }, water: { name: ['淺水', 'Shallows'], top: '#3a7ad0', side: '#2a5aa0', el: 'water', cost: 2, low: true },
-  deep: { name: ['深水', 'Deep water'], top: '#1a4aa0', side: '#12357a', el: 'water', block: true }, swamp: { name: ['沼澤', 'Swamp'], top: '#5a6a3a', side: '#3a4428', el: 'water', cost: 2, poison: true },
-  lava: { name: ['熔岩', 'Lava'], top: '#e0501a', side: '#7a1a0a', el: 'fire', block: true }, wood: { name: ['木板', 'Planks'], top: '#b08048', side: '#6a4a28', el: 'earth' },
-  roof: { name: ['屋頂', 'Roof'], top: '#a04a3a', side: '#c0b090', el: 'wind' }, brick: { name: ['磚道', 'Cobbles'], top: '#b0a090', side: '#7a6a5a', el: 'earth' },
-  marble: { name: ['大理石', 'Marble'], top: '#e8e4f0', side: '#a8a4b8', el: 'holy' }, moss: { name: ['苔蘚', 'Moss'], top: '#4a7a4a', side: '#4a4a3a', el: 'earth' },
-  crystal: { name: ['星晶', 'Star crystal'], top: '#8ab0ff', side: '#4a5ab0', el: 'holy' }, ash: { name: ['灰燼', 'Ash'], top: '#5a5458', side: '#3a3438', el: 'dark' },
+  grass: { name: ['草地', 'Grass'], top: '#7c8c44', side: '#7a5434', el: 'wind' }, dirt: { name: ['泥土', 'Dirt'], top: '#a8885a', side: '#6e4a2c', el: 'earth' },
+  stone: { name: ['石地', 'Stone'], top: '#9e9684', side: '#6e6658', el: 'earth' }, sand: { name: ['沙地', 'Sand'], top: '#d8bf84', side: '#a88a5a', el: 'wind', cost: 2 },
+  snow: { name: ['雪地', 'Snow'], top: '#e8eef2', side: '#a8b4c4', el: 'ice', cost: 2 }, water: { name: ['淺水', 'Shallows'], top: '#4282b0', side: '#2e5e86', el: 'water', cost: 2, low: true },
+  deep: { name: ['深水', 'Deep water'], top: '#2f6488', side: '#1e4466', el: 'water', block: true }, swamp: { name: ['沼澤', 'Swamp'], top: '#5a7050', side: '#3e4c32', el: 'water', cost: 2, poison: true },
+  lava: { name: ['熔岩', 'Lava'], top: '#e0501a', side: '#7a1a0a', el: 'fire', block: true }, wood: { name: ['木板', 'Planks'], top: '#a87a48', side: '#6a4a28', el: 'earth' },
+  roof: { name: ['屋頂', 'Roof'], top: '#a8442e', side: '#d8c49a', el: 'wind' }, brick: { name: ['磚道', 'Cobbles'], top: '#b4a484', side: '#7e6e56', el: 'earth' },
+  marble: { name: ['大理石', 'Marble'], top: '#ece4d4', side: '#b0a490', el: 'holy' }, moss: { name: ['苔蘚', 'Moss'], top: '#5e7a3e', side: '#4a4632', el: 'earth' },
+  crystal: { name: ['星晶', 'Star crystal'], top: '#8ab0ff', side: '#4a5ab0', el: 'holy' }, ash: { name: ['灰燼', 'Ash'], top: '#6a625a', side: '#4a443e', el: 'dark' },
   cloud: { name: ['雲海', 'Cloudsea'], top: '#f0f4ff', side: '#c8d4f0', el: 'wind' }, void: { name: ['虛空', 'Void'], top: '#2a1a3a', side: '#140a20', el: 'dark' },
-  tree: { name: ['樹木', 'Tree'], top: '#3a7a3a', side: '#5a3a1a', el: 'wind', block: true, obj: 'tree' }, rock: { name: ['岩石', 'Boulder'], top: '#8a8a8a', side: '#5a5a5a', el: 'earth', block: true, obj: 'rock' },
+  tree: { name: ['樹木', 'Tree'], top: '#647a38', side: '#6a4a28', el: 'wind', block: true, obj: 'tree' }, rock: { name: ['岩石', 'Boulder'], top: '#8e8676', side: '#6a6458', el: 'earth', block: true, obj: 'rock' },
 };

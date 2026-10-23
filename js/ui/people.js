@@ -12,7 +12,7 @@ const sh = (c, k) => { let [r, g, b] = hex(c); if (k < 0) { r *= 1 + k; g *= 1 +
 const CAPE = new Set(['knight', 'paladin', 'darkknight', 'templar', 'sovereign', 'starbearer', 'runeknight', 'swordmaster', 'skylancer', 'cavalier', 'tactician', 'sage', 'archmage', 'necromancer']);
 const ROBE = new Set(['scholar', 'elementalist', 'cleric', 'hexer', 'chronomancer', 'summoner', 'sage', 'archmage', 'timewalker', 'necromancer', 'astromancer', 'lampwarden', 'seraph']);
 const PLATE = new Set(['knight', 'paladin', 'darkknight', 'templar', 'bulwark', 'skylancer', 'cavalier', 'lancer', 'sovereign', 'runeknight', 'berserker']);
-const METAL = '#c8d0dc', METAL_D = '#7c8696', METAL_L = '#eef2f8', OUT = '#16101c', LEATHER = '#6a4626';
+const METAL = '#c8d0dc', METAL_D = '#7c8696', METAL_L = '#eef2f8', OUT = '#2e1e12', LEATHER = '#6a4626';
 
 const cache = new Map();
 // pose: idle0 idle1 walk0 walk1 act hurt dead; back: seen from behind
@@ -29,7 +29,7 @@ export function personHD(u, back, pose = 'idle0') {
     c = mk(W, H); const g = c.getContext('2d');
     g.fillStyle = 'rgba(0,0,0,.3)'; g.beginPath(); g.ellipse(16, 37, 14, 3, 0, 0, Math.PI * 2); g.fill();
     g.save(); g.translate(16, 36); g.rotate(-Math.PI / 2); g.scale(0.62, 0.9); g.drawImage(up, -16, -38); g.restore();
-  } else c = draw(u, look, wpn, kind, back, pose);
+  } else c = chibi(draw(u, look, wpn, kind, back, pose));
   cache.set(key, c);
   return c;
 }
@@ -212,3 +212,16 @@ function outline(src) {
   g.drawImage(src, 0, 0);
   return c;
 }
+
+// chibi proportions: the head keeps its size while the body below the neck loses every fourth row,
+// so the figure is shorter and stockier with a big head (the empty rows end up at the top)
+const NECK = 17;
+function chibi(src) {
+  const c = mk(W, H), g = c.getContext('2d'), rows = [];
+  for (let y = 0; y < NECK; y++) rows.push(y);
+  for (let y = NECK; y < H; y++) if ((y - NECK) % 4 !== 3) rows.push(y);
+  const off = H - rows.length;
+  rows.forEach((sy, i) => g.drawImage(src, 0, sy, W, 1, 0, off + i, W, 1));
+  return c;
+}
+export const CHIBI_TOP = H - (17 + Math.ceil((H - 17) * 3 / 4));
