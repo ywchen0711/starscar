@@ -7,7 +7,7 @@ import { portrait } from './sprites.js';
 import { JOBS, ABILITIES, describe } from '../data/jobs.js';
 import { ELEMENTS, SLOTS } from '../data/core.js';
 import { ITEMS, CONSUMABLES } from '../data/items.js';
-import { STATUS, STATS } from '../data/core.js';
+import { STATUS, STATS, statusTags } from '../data/core.js';
 import { MONSTERS, MDROP } from '../data/monsters.js';
 import { stealWorth, createBattle, advance, beginTurn, endTurn, reachable, moveTo, targetTiles, areaOf, victims, calc, statusChance, perform, plan, canUse, mpCost, forecast, alive, sideOf, ATTACK, itemAction, useItem, checkEnd, live, tileAt, unitAt } from '../core/battle.js';
 import { jobLv } from '../core/unit.js';
@@ -21,6 +21,9 @@ let FAST = false;
 let AUTO = false;
 const W = (ms) => wait(FAST ? ms * 0.35 : ms);
 
+// the stat ups and downs on a unit as tags (statusTags gives the statuses first, then the buffs)
+const miniTags = (u) => { const t = statusTags(u); return t.length ? el('span', { class: 'mtags' }, t.slice(0, t.length > 4 ? 3 : 4).map(([x, c]) => el('b', { style: { color: c, borderColor: c } }, x)), t.length > 4 ? el('b', {}, '+' + (t.length - 3)) : null) : null; };
+const bufTags = (u) => statusTags({ buf: u.buf }).map(([t, c]) => el('span', { class: 'tag', style: { color: c, borderColor: c } }, t));
 export async function runBattle(spec) {
   const cv = document.getElementById('view'), ui = clear();
   const view = new IsoView(cv);
@@ -67,7 +70,7 @@ export async function runBattle(spec) {
   }
   const autoTag = el('div', { class: 'panel', style: { position: 'absolute', left: '50%', top: '52px', transform: 'translateX(-50%)', padding: '2px 12px', fontSize: '13px', color: '#7adf8a', display: AUTO ? '' : 'none', pointerEvents: 'none' } }, T('🤖 自動作戰中', '🤖 Auto-battle'));
   ui.append(hud.goal, hud.turns, hud.card, hud.hover, hud.cmd, cam, hud.help, autoTag);
-  const refreshTurns = () => { clear(hud.turns).append(el('div', { class: 'title small' }, T('行動順序', 'Turn order')), ...forecast(B, 9).map((u) => el('div', { class: 't' }, el('i', { style: { background: u.side === 'foe' ? '#ff6a5a' : u.side === 'guest' ? '#7adf8a' : '#6aa0ff' } }), nameOf(u)))); };
+  const refreshTurns = () => { clear(hud.turns).append(el('div', { class: 'title small' }, T('行動順序', 'Turn order')), ...forecast(B, 9).map((u) => el('div', { class: 't' }, el('i', { style: { background: u.side === 'foe' ? '#ff6a5a' : u.side === 'guest' ? '#7adf8a' : '#6aa0ff' } }), nameOf(u), miniTags(u)))); };
   // pointer: hover shows a unit's card; clicks go to whoever is listening
   let onTile = null, hoverTile = null;
   const pt = (e) => { const r = cv.getBoundingClientRect(); return view.pick((e.clientX - r.left) * cv.width / r.width, (e.clientY - r.top) * cv.height / r.height); };
@@ -375,7 +378,7 @@ export async function runBattle(spec) {
       el('div', { class: 'head' }, cnv, el('div', { style: { flex: 1, minWidth: 0 } }, el('div', { class: 'nm' }, nameOf(u)), el('div', { class: 'small dim' }, `${job} · Lv ${u.u.lv}${u.u.mon ? '' : ` · ${T('職業', 'Job')} Lv ${jobLv(u.u)}`}`))),
       el('div', { class: 'row small', style: { marginTop: '6px', justifyContent: 'space-between' } }, el('span', {}, `HP ${u.hp}/${u.s.hp}`), el('span', { class: 'dim' }, `MP ${u.mp}/${u.s.mp}`), el('span', { class: 'dim' }, `CT ${Math.max(0, Math.floor(u.ct))}`)),
       bar(u.hp, u.s.hp, u.hp / u.s.hp > 0.5 ? '#5ad06a' : u.hp / u.s.hp > 0.25 ? '#e0c040' : '#e05a4a'), el('div', { style: { height: '3px' } }), bar(u.mp, u.s.mp || 1, '#4a8aff'),
-      sts.length ? el('div', { class: 'row', style: { marginTop: '5px', gap: '4px' } }, sts.map((k) => el('span', { class: 'tag', style: { color: STATUS[k].col, borderColor: STATUS[k].col } }, T(STATUS[k].name)))) : null,
+      sts.length || bufTags(u).length ? el('div', { class: 'row', style: { marginTop: '5px', gap: '4px', flexWrap: 'wrap' } }, sts.map((k) => el('span', { class: 'tag', style: { color: STATUS[k].col, borderColor: STATUS[k].col } }, T(STATUS[k].name) + (u.st[k] < 90 ? ` ${Math.ceil(u.st[k])}` : ''))), bufTags(u)) : null,
     );
   }
   function unitDetail(u) {
@@ -387,7 +390,7 @@ export async function runBattle(spec) {
     const job = mon ? T(mon.name) : T(JOBS[u.u.job].name);
     // facing as an arrow on screen, so it stays true however the camera is turned
     const faceArrow = () => { const g = GRID[u.dir]; if (!g) return '—'; const [x0, y0] = view.project(u.x + .5, u.y + .5, 0), [x1, y1] = view.project(u.x + .5 + g[0], u.y + .5 + g[1], 0); return '→↘↓↙←↖↑↗'[((Math.round(Math.atan2(y1 - y0, x1 - x0) / (Math.PI / 4)) % 8) + 8) % 8]; };
-    const sts = Object.keys(u.st).filter((k) => STATUS[k]).map((k) => el('span', { class: 'tag', style: { color: STATUS[k].col, borderColor: STATUS[k].col } }, T(STATUS[k].name) + (u.st[k] < 90 ? ` ${Math.ceil(u.st[k])}` : '')));
+    const sts = Object.keys(u.st).filter((k) => STATUS[k]).map((k) => el('span', { class: 'tag', style: { color: STATUS[k].col, borderColor: STATUS[k].col } }, T(STATUS[k].name) + (u.st[k] < 90 ? ` ${Math.ceil(u.st[k])}` : ''))).concat(bufTags(u));
     const head = el('div', { class: 'row', style: { gap: '12px', alignItems: 'center' } }, cnv,
       el('div', { style: { flex: 1, minWidth: 0 } },
         el('div', { class: 'row', style: { gap: '6px', alignItems: 'center' } }, el('span', { class: 'title', style: { fontSize: '20px' } }, nameOf(u)), el('span', { class: 'tag', style: { color: sideTag[1], borderColor: sideTag[1] } }, sideTag[0]), u.boss ? el('span', { class: 'tag', style: { color: '#ffd040', borderColor: '#ffd040' } }, T('首領', 'Boss')) : null, u.dead ? el('span', { class: 'tag' }, T('倒下', 'Down')) : null),

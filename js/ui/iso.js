@@ -1,6 +1,6 @@
 // The battle map seen from above at an angle: raised columns of ground, the units standing on them,
 // coloured overlays for moving and aiming, and the little effects (numbers, flashes, spell rings).
-import { TERRAIN, ELEMENTS, STATUS } from '../data/core.js';
+import { TERRAIN, ELEMENTS, STATUS, statusTags } from '../data/core.js';
 import { groundTex, sprite as deco, tileHash, rnd as drnd } from './deco.js';
 import { person, monster, SPR_W, SPR_H, SPR_SCALE, MON_W, MON_H } from './sprites.js';
 import { MONSTERS } from '../data/monsters.js';
@@ -83,12 +83,14 @@ export class IsoView {
     const order = map.tiles.map((t) => ({ t, d: this.depth(t.x + 0.5, t.y + 0.5) })).sort((a, b) => a.d - b.d);
     this.order = order;
     const byTile = new Map(); for (const u of this.units) if (!u.gone && !u.jumping) byTile.set(`${u.x},${u.y}`, u);
+    this.tagQ = [];
     for (const { t } of order) {
       this.drawTile(t);
       const u = byTile.get(`${t.x},${t.y}`); if (u) this.drawUnit(u, t);
     }
     // jumping units hang in the air above the map
     for (const u of this.units) if (u.jumping && !u.gone) { const t = map.tiles[u.y * map.w + u.x]; if (t) this.drawUnit(u, t, 140); }
+    for (const q of this.tagQ) this.drawTags(...q);
     this.drawFx(dt);
   }
   // the four corners of a tile's top at height h, in order: NW NE SE SW
@@ -187,14 +189,26 @@ export class IsoView {
       g.fillStyle = 'rgba(10,10,20,.75)'; g.fillRect(bx - 1, by - 1, bw + 2, 3 * z + 2);
       g.fillStyle = p > 0.5 ? '#6ad87a' : p > 0.25 ? '#e8c84a' : '#ef5a4a'; g.fillRect(bx, by, bw * p, 3 * z);
       g.strokeStyle = team.ring; g.lineWidth = 1; g.strokeRect(bx - 1.5, by - 1.5, bw + 3, 3 * z + 3);
-      // statuses as small coloured dots
-      const sts = Object.keys(u.st || {}).filter((k) => u.st[k] < 90 && STATUS[k]).slice(0, 5);
-      sts.forEach((k, i) => { g.fillStyle = STATUS[k].col; g.beginPath(); g.arc(bx + 3 * z + i * 6 * z, by - 4 * z, 2.4 * z, 0, Math.PI * 2); g.fill(); g.strokeStyle = 'rgba(0,0,0,.6)'; g.lineWidth = 1; g.stroke(); });
-      if (u.boss) { g.fillStyle = '#ffd040'; g.font = `bold ${11 * z}px sans-serif`; g.textAlign = 'center'; g.fillText('♛', cx, by - 7 * z - (sts.length ? 5 * z : 0)); g.textAlign = 'left'; }
+      // statuses and buffs as short labelled tags over the bar (drawn after every unit, so nothing hides them)
+      const tags = statusTags(u), fs = Math.max(11, Math.round(6 * z)), tagH = tags.length ? fs + 4 : 0;
+      if (tags.length) (this.tagQ = this.tagQ || []).push([tags, cx, by - fs - 4, fs, Math.max(bw * 3.4, 96)]);
+      if (u.boss) { g.fillStyle = '#ffd040'; g.font = `bold ${11 * z}px sans-serif`; g.textAlign = 'center'; g.fillText('♛', cx, by - 7 * z - tagH); g.textAlign = 'left'; }
       // whose turn it is: a bobbing gold arrow
-      if (this.active === u) { const ay = by - 10 * z - Math.abs(Math.sin(this.time * 4)) * 5 * z - (u.boss || sts.length ? 9 * z : 0); g.fillStyle = '#ffd860'; g.strokeStyle = '#3a2a10'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(cx - 6 * z, ay - 7 * z); g.lineTo(cx + 6 * z, ay - 7 * z); g.lineTo(cx, ay); g.closePath(); g.fill(); g.stroke(); }
+      if (this.active === u) { const ay = by - 10 * z - Math.abs(Math.sin(this.time * 4)) * 5 * z - (u.boss ? 9 * z : 0) - tagH; g.fillStyle = '#ffd860'; g.strokeStyle = '#3a2a10'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(cx - 6 * z, ay - 7 * z); g.lineTo(cx + 6 * z, ay - 7 * z); g.lineTo(cx, ay); g.closePath(); g.fill(); g.stroke(); }
     }
     u._sx = cx; u._sy = cy;
+  }
+  // a row of status tags centred on x: as many as fit in maxW, then "+N"
+  drawTags(tags, cx, y, fs, maxW) {
+    const g = this.g, pad = 2, hh = fs + 2;
+    g.save(); g.font = `bold ${fs}px "Noto Sans TC", sans-serif`; g.textBaseline = 'middle'; g.textAlign = 'left';
+    const wOf = (t) => Math.ceil(g.measureText(t).width) + pad * 2;
+    let n = tags.length; const tot = () => tags.slice(0, n).reduce((a, t) => a + wOf(t[0]) + 1, 0) + (n < tags.length ? wOf('+' + (tags.length - n)) : 0);
+    while (n > 1 && tot() > maxW) n--;
+    const list = tags.slice(0, n); if (n < tags.length) list.push(['+' + (tags.length - n), '#e8e8f0']);
+    let x = Math.round(cx - tot() / 2); y = Math.round(y);
+    for (const [t, c] of list) { const w = wOf(t); g.fillStyle = 'rgba(10,10,24,.85)'; g.fillRect(x, y, w, hh); g.strokeStyle = c; g.lineWidth = 1; g.strokeRect(x + 0.5, y + 0.5, w - 1, hh - 1); g.fillStyle = c; g.fillText(t, x + pad, y + hh / 2 + 1); x += w + 1; }
+    g.restore();
   }
   // ---------------------------------------------------------------- effects
   pop(u, text, col = '#fff', big = false) { this.fx.push({ k: 'num', u, text, col, t: 0, big }); }

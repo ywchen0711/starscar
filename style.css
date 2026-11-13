@@ -157,3 +157,7 @@ html, body { background: var(--bg); }
 .title-screen { background: radial-gradient(ellipse at 50% 30%, #4e7a8a 0%, #2c2418 70%) !important; }
 .title-screen .logo { font-family: var(--sans); font-weight: 900; color: #fff; letter-spacing: 0.06em; text-shadow: 4px 0 0 #6a2a10, -4px 0 0 #6a2a10, 0 4px 0 #6a2a10, 0 -4px 0 #6a2a10, 4px 4px 0 #6a2a10, -4px 4px 0 #6a2a10, 4px -4px 0 #6a2a10, -4px -4px 0 #6a2a10, 0 10px 0 rgba(0, 0, 0, 0.45); }
 .title-screen .sub { font-family: var(--sans); font-weight: 900; color: #ffe27a; text-shadow: 2px 0 0 #2e1a0c, -2px 0 0 #2e1a0c, 0 2px 0 #2e1a0c, 0 -2px 0 #2e1a0c; }
+
+/* status tags beside each name in the turn order */
+.turnlist .mtags { margin-left: 4px; white-space: nowrap; } .turnlist .mtags b { display: inline-block; font-size: 10px; line-height: 12px; padding: 0 2px; margin-left: 2px; border: 1px solid #c8b890; border-radius: 3px; background: rgba(10, 10, 24, 0.6); color: #e8e8f0; }
+@media (min-width: 761px) { .turnlist { width: auto; min-width: 150px; max-width: 260px; } }

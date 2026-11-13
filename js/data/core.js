@@ -1,4 +1,5 @@
 // The building blocks every other table uses: elements, status effects, weapon kinds, equipment slots, stats.
+import { EN } from '../i18n.js';
 
 export const ELEMENTS = {
   fire: ['火', 'Fire', '#ff7a3a'], ice: ['冰', 'Ice', '#8ad8ff'], bolt: ['雷', 'Lightning', '#ffe14a'], wind: ['風', 'Wind', '#9af0a0'],
@@ -14,16 +15,28 @@ export const STATUS = {
   stop:    { name: ['停止', 'Stop'], bad: true, col: '#c0c0d8', desc: ['無法行動，也無法閃避。', 'Cannot act or evade.'] },
   sleep:   { name: ['睡眠', 'Sleep'], bad: true, col: '#b0a0ff', desc: ['無法行動，受到攻擊就會醒來。', 'Cannot act; wakes when hit.'] },
   silence: { name: ['沉默', 'Silence'], bad: true, col: '#d0d0d0', desc: ['無法使用魔法。', 'Cannot cast spells.'] },
-  blind:   { name: ['失明', 'Blind'], bad: true, col: '#606070', desc: ['物理命中率大減。', 'Physical hit rate falls sharply.'] },
+  blind:   { name: ['失明', 'Blind'], bad: true, col: '#a0a0b4', desc: ['物理命中率大減。', 'Physical hit rate falls sharply.'] },
   protect: { name: ['護盾', 'Protect'], col: '#a0c8ff', desc: ['受到的物理傷害 ×2/3。', 'Physical damage taken ×2/3.'] },
   shell:   { name: ['魔障', 'Shell'], col: '#e0a0ff', desc: ['受到的魔法傷害 ×2/3。', 'Magic damage taken ×2/3.'] },
   berserk: { name: ['狂暴', 'Berserk'], bad: true, col: '#ff5a5a', desc: ['攻擊力 ×1.5，但只會自己攻擊。', 'Attack ×1.5, but fights on its own.'] },
-  doom:    { name: ['死亡宣告', 'Doom'], bad: true, col: '#5a2a6a', desc: ['倒數結束時倒下。', 'Falls when the count runs out.'] },
+  doom:    { name: ['死亡宣告', 'Doom'], bad: true, col: '#b47aff', desc: ['倒數結束時倒下。', 'Falls when the count runs out.'] },
   stun:    { name: ['暈眩', 'Stun'], bad: true, col: '#ffb070', desc: ['下一回合無法行動。', 'Loses its next turn.'] },
   charm:   { name: ['魅惑', 'Charm'], bad: true, col: '#ff8ad8', desc: ['暫時為敵方而戰。', 'Fights for the other side for a while.'] },
   float:   { name: ['浮空', 'Float'], col: '#c8f0ff', desc: ['不受土屬性與地形影響。', 'Immune to earth and terrain.'] },
   reflect: { name: ['反射', 'Reflect'], col: '#f0f0ff', desc: ['反彈單體魔法。', 'Bounces single-target spells.'] },
 };
+
+// short labels for the status tags over each unit on the map: [Chinese, English]
+export const STATUS_SHORT = { poison: ['毒', 'PSN'], regen: ['再生', 'RGN'], haste: ['快', 'HST'], slow: ['慢', 'SLW'], stop: ['停', 'STP'], sleep: ['眠', 'SLP'], silence: ['默', 'SIL'], blind: ['盲', 'BLD'], protect: ['盾', 'PRT'], shell: ['魔盾', 'SHL'], berserk: ['狂', 'BSK'], doom: ['死', 'DOOM'], stun: ['暈', 'STN'], charm: ['惑', 'CHM'], float: ['浮', 'FLT'], reflect: ['反', 'RFL'] };
+const BUF_SHORT = { atk: ['攻', 'ATK'], def: ['防', 'DEF'], mag: ['魔', 'MAG'], res: ['抗', 'RES'], spd: ['速', 'SPD'], eva: ['避', 'EVA'], mov: ['移', 'MOV'], jmp: ['跳', 'JMP'] };
+// every timed status (doom with its count) and every net stat change, as [label, colour]; standing statuses from gear (99) are left to the unit card
+export function statusTags(u, all = false) {
+  const out = [], L = (a) => a[EN ? 1 : 0];
+  for (const k of Object.keys(u.st || {})) { const n = u.st[k]; if (!STATUS[k] || !n || (!all && n >= 90)) continue; out.push([L(STATUS_SHORT[k] || STATUS[k].name) + (k === 'doom' ? Math.ceil(n) : ''), STATUS[k].col]); }
+  const net = {}; for (const b of u.buf || []) net[b.k] = (net[b.k] || 0) + b.p;
+  for (const [k, p] of Object.entries(net)) if (p) out.push([L(BUF_SHORT[k] || [k, k]) + (p > 0 ? '↑' : '↓'), p > 0 ? '#7aff8a' : '#ff8a7a']);
+  return out;
+}
 
 // stat buffs and debuffs carried as numbers on the unit: atk, def, mag, res, spd, eva (percent)
 export const STATS = { hp: ['HP', 'HP'], mp: ['MP', 'MP'], atk: ['攻擊', 'ATK'], def: ['防禦', 'DEF'], mag: ['魔力', 'MAG'], res: ['魔防', 'RES'], spd: ['速度', 'SPD'], mov: ['移動', 'Move'], jmp: ['跳躍', 'Jump'], eva: ['迴避', 'Evade'] };
