@@ -118,6 +118,7 @@ function world() {
       g.strokeStyle = both ? '#d8b878' : 'rgba(216,184,120,.4)'; g.lineWidth = 3; g.setLineDash([7, 4]); g.stroke(); g.setLineDash([]);
     }
     // places
+    const labels = [];
     for (const [id, n] of Object.entries(NODES)) {
       if (!open.has(id)) continue;
       const [x, y] = P(n), r = 9 + (n.kind === 'town' ? 3 : 0);
@@ -128,8 +129,8 @@ function world() {
       else if (n.kind === 'hidden') { g.beginPath(); for (let k = 0; k < 10; k++) { const a = k * Math.PI / 5 - Math.PI / 2, rr = k % 2 ? r * 0.5 : r * 1.3; g.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } g.closePath(); g.fill(); g.stroke(); }
       else { g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); g.stroke(); }
       if (id === selected) { g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.arc(x, y, r + 6 + Math.sin(t * 4) * 2, 0, Math.PI * 2); g.stroke(); }
-      g.font = `900 ${Math.max(12, 13 * s * 1.25)}px "Noto Sans TC", sans-serif`; g.textAlign = 'center'; g.lineJoin = 'round'; g.lineWidth = 4; g.strokeStyle = '#2e1e12'; g.strokeText(T(n.name), x, y + r + 16); g.fillStyle = '#ffffff'; g.fillText(T(n.name), x, y + r + 16);
-      if (next && next.at === id) { g.fillStyle = '#ff5a4a'; g.font = 'bold 22px sans-serif'; g.fillText('!', x, y - r - 8 + Math.sin(t * 5) * 3); }
+      labels.push({ id, name: T(n.name), x, below: y + r + 16, above: y - r - 8 });
+      if (next && next.at === id) { g.fillStyle = '#ff5a4a'; g.font = 'bold 22px sans-serif'; g.textAlign = 'center'; g.fillText('!', x, y - r - 8 + Math.sin(t * 5) * 3); }
       g.textAlign = 'left';
     }
     // the road still ahead glows while walking
@@ -151,6 +152,19 @@ function world() {
     g.save(); g.imageSmoothingEnabled = false; g.translate(px, py - hop); if (flip) g.scale(-1, 1); g.drawImage(img, -w / 2, -h + 4, w, h); g.restore();
     const fx = px + (flip ? -16 : 16), fy = py - hop;
     g.fillStyle = '#5a3a1a'; g.fillRect(fx - 1, fy - 52, 3, 46); g.fillStyle = '#3a5aa0'; g.beginPath(); g.moveTo(fx + 2, fy - 52); g.lineTo(fx + 24, fy - 46 + Math.sin(t * (moving ? 9 : 3)) * 3); g.lineTo(fx + 2, fy - 38); g.fill(); g.strokeStyle = '#d8e8ff'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(fx + 5, fy - 49); g.lineTo(fx + 16, fy - 43); g.stroke();
+    // the names, over the company's banner: kept inside the map (a long English name at the edge was cut off) and, on a small map, moved above the
+    // place or left out where they would print over another name (the chosen place and the next goal go first)
+    { const fs = Math.max(12, 13 * s * 1.25), placed = [];
+      g.font = `900 ${fs}px "Noto Sans TC", sans-serif`; g.textAlign = 'center'; g.lineJoin = 'round'; g.lineWidth = 4;
+      const rank = (L) => (L.id === selected ? 2 : 0) + (next && next.at === L.id ? 1 : 0);
+      for (const L of labels.sort((a, c) => rank(c) - rank(a))) {
+        const w = g.measureText(L.name).width + 6, x = Math.max(b.x + w / 2 + 2, Math.min(b.x + b.w - w / 2 - 2, L.x));
+        const rect = (by) => [x - w / 2, by - fs, x + w / 2, by + fs * 0.25];
+        const free = (by) => { const q = rect(by); return placed.every((o) => q[2] <= o[0] || q[0] >= o[2] || q[3] <= o[1] || q[1] >= o[3]); };
+        let by = [L.below, L.above].find(free); if (by == null) { if (!rank(L)) continue; by = L.below; }
+        placed.push(rect(by)); g.strokeStyle = '#2e1e12'; g.strokeText(L.name, x, by); g.fillStyle = '#ffffff'; g.fillText(L.name, x, by);
+      }
+      g.textAlign = 'left'; }
     // an ambush: the screen flashes red
     if (flash > 0) { flash = Math.max(0, flash - 0.016); g.fillStyle = `rgba(200,30,30,${flash * 0.9})`; g.fillRect(0, 0, cv.width, cv.height); }
     requestAnimationFrame(draw);

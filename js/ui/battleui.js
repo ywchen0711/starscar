@@ -375,7 +375,7 @@ export async function runBattle(spec) {
     const job = u.u.mon ? T(MONSTERS[u.u.mon].name) : T(JOBS[u.u.job].name);
     const sts = Object.keys(u.st).filter((k) => u.st[k] < 90 || ['protect', 'shell', 'regen', 'haste', 'float', 'reflect'].includes(k));
     clear(box).append(
-      el('div', { class: 'head' }, cnv, el('div', { style: { flex: 1, minWidth: 0 } }, el('div', { class: 'nm' }, nameOf(u)), el('div', { class: 'small dim' }, `${job} · Lv ${u.u.lv}${u.u.mon ? '' : ` · ${T('職業', 'Job')} Lv ${jobLv(u.u)}`}`))),
+      el('div', { class: 'head' }, cnv, el('div', { style: { flex: 1, minWidth: 0 } }, el('div', { class: 'nm' }, nameOf(u)), el('div', { class: 'small dim', html: [job, `Lv ${u.u.lv}`, u.u.mon ? '' : `${T('職業', 'Job')} Lv ${jobLv(u.u)}`].filter(Boolean).map((x) => `<span style="white-space:nowrap">${x}</span>`).join(' · ') }))),
       el('div', { class: 'row small', style: { marginTop: '6px', justifyContent: 'space-between' } }, el('span', {}, `HP ${u.hp}/${u.s.hp}`), el('span', { class: 'dim' }, `MP ${u.mp}/${u.s.mp}`), el('span', { class: 'dim' }, `CT ${Math.max(0, Math.floor(u.ct))}`)),
       bar(u.hp, u.s.hp, u.hp / u.s.hp > 0.5 ? '#5ad06a' : u.hp / u.s.hp > 0.25 ? '#e0c040' : '#e05a4a'), el('div', { style: { height: '3px' } }), bar(u.mp, u.s.mp || 1, '#4a8aff'),
       sts.length || bufTags(u).length ? el('div', { class: 'row', style: { marginTop: '5px', gap: '4px', flexWrap: 'wrap' } }, sts.map((k) => el('span', { class: 'tag', style: { color: STATUS[k].col, borderColor: STATUS[k].col } }, T(STATUS[k].name) + (u.st[k] < 90 ? ` ${Math.ceil(u.st[k])}` : ''))), bufTags(u)) : null,

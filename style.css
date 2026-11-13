@@ -52,7 +52,7 @@ button { font: inherit; color: inherit; }
 .goal { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); font-family: var(--pix); font-size: 14px; padding: 4px 14px; }
 .cambtns { position: absolute; left: 12px; top: 12px; display: flex; gap: 6px; }
 .cambtns .btn { padding: 4px 10px; }
-.helpline { position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%); font-size: 11.5px; color: var(--dim); white-space: nowrap; pointer-events: none; text-shadow: 0 1px 2px #000; }
+.helpline { position: absolute; left: 50%; top: 46px; /* under the goal: at the bottom it ran behind the unit card and the command menu */ transform: translateX(-50%); font-size: 11.5px; color: var(--dim); white-space: nowrap; pointer-events: none; text-shadow: 0 1px 2px #000; }
 
 /* dialogue */
 .dialog { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); width: min(860px, calc(100% - 24px)); display: flex; gap: 12px; cursor: pointer; min-height: 120px; }
@@ -108,6 +108,11 @@ button { font: inherit; color: inherit; }
   .cmd { left: 12px; bottom: auto; top: 54px; }
   .preview { width: calc(50% - 18px); }
   .turnlist { width: 120px; top: 54px; }
+  /* an upright phone: the eight view buttons fit on one row, the goal sits above the unit cards instead of
+     under the buttons, and the key help (keyboard only) gives way */
+  .cambtns { gap: 4px; left: 8px; } .cambtns .btn { padding: 4px 7px; }
+  .goal { top: auto; bottom: 150px; max-width: 70%; font-size: 12px; text-align: center; }
+  .helpline { display: none; }
   .cols { flex-direction: column; overflow-y: auto; }
   .statgrid { grid-template-columns: repeat(2, 1fr); }
 }
@@ -161,3 +166,12 @@ html, body { background: var(--bg); }
 /* status tags beside each name in the turn order */
 .turnlist .mtags { margin-left: 4px; white-space: nowrap; } .turnlist .mtags b { display: inline-block; font-size: 10px; line-height: 12px; padding: 0 2px; margin-left: 2px; border: 1px solid #c8b890; border-radius: 3px; background: rgba(10, 10, 24, 0.6); color: #e8e8f0; }
 @media (min-width: 761px) { .turnlist { width: auto; min-width: 150px; max-width: 260px; } }
+/* the site's lobby button sits in the top-left corner (a page opened on its own, not inside the lobby): it covered the
+   screen titles and the battle's view buttons, so they start to the right of it */
+body:has(#hub-back) .topbar { padding-left: 92px; }
+body:has(#hub-back) .cambtns { left: 92px; }
+@media (min-width: 761px) { body:has(#hub-back) .goal { top: 52px; } body:has(#hub-back) .helpline { top: 86px; } } /* the shifted buttons reach the middle */
+@media (max-width: 760px) {
+  body:has(#hub-back) .cambtns { left: 84px; right: 8px; flex-wrap: wrap; }
+  body:has(#hub-back) .cmd, body:has(#hub-back) .turnlist { top: 92px; }
+}
